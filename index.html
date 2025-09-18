@@ -3,20 +3,18 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Painel Cripto PRO — 2 Gráficos + ST/MKR + IA (assinatura)</title>
+<title>Painel Cripto PRO — Candles (2 painéis) + Tendência (ST/MKR) + IA</title>
 <style>
   :root{
     --bg:#0b1220;--panel:#0e1627;--soft:#111b2f;--muted:#334155;--text:#e5e7eb;
     --ok:#22c55e;--warn:#f59e0b;--bad:#ef4444;--line:#22304a;--info:#60a5fa
   }
-  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
-    font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial}
   .wrap{padding:16px;max-width:1680px;margin:auto}
   h1{margin:0 0 10px 0;font-size:18px;font-weight:700}
   .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .topbar{background:var(--panel);border:1px solid #1f2a40;border-radius:12px;padding:10px}
-  .chip{background:var(--soft);border:1px solid #243149;border-radius:10px;padding:6px 10px;
-    display:inline-flex;gap:8px;align-items:center;font-size:14px}
+  .chip{background:var(--soft);border:1px solid #243149;border-radius:10px;padding:6px 10px;display:inline-flex;gap:8px;align-items:center;font-size:14px}
   .muted{color:#9aa8bf}
   select,input,button{background:#0b1220;color:var(--text);border:1px solid #2c3a52;border-radius:10px;padding:6px 10px}
   input{min-width:220px}
@@ -35,19 +33,13 @@
   .trendRow{display:flex;gap:8px;flex-wrap:wrap}
   .split{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
   footer{margin-top:12px;color:#9aa8bf;font-size:12px;text-align:center}
-
-  /* Modal */
-  .modal-back{position:fixed;inset:0;background:#0009;display:none;align-items:center;justify-content:center;z-index:50}
-  .modal{width:min(520px,92vw);background:#0e1627;border:1px solid #1f2a40;border-radius:14px;padding:16px}
-  .modal h3{margin:0 0 12px 0}
-  .right{margin-left:auto}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Painel Cripto PRO — Candles (2 painéis) + Tendência (ST/MKR) + IA</h1>
 
-  <!-- Topo -->
+  <!-- Barra topo -->
   <div class="topbar">
     <div class="split">
       <div class="row">
@@ -62,6 +54,7 @@
           <select id="autoSel">
             <option value="0">Off</option>
             <option value="2000">2s</option>
+            <option value="3000">3s</option>
             <option value="5000" selected>5s</option>
             <option value="10000">10s</option>
             <option value="15000">15s</option>
@@ -69,11 +62,26 @@
           </select>
         </label>
 
-        <span class="chip" id="subStatus">Assinatura: <b id="subFlag">negado</b></span>
-        <button class="chip" id="btnSub">Entrar/Ativar</button>
+        <label class="chip">IA Webhook
+          <input id="iaUrl" value="https://script.google.com/macros/s/AKfycbyTl7gsql26O_tdMOCqB_CcLCyQ5k8aoI6Aack_VWJsXk5b-PClIUSnAtgyctA6pdlX/exec">
+        </label>
+        <label class="chip">Chave
+          <input id="iaKey" placeholder="(opcional)">
+        </label>
+        <label class="chip"><input type="checkbox" id="iaAuto" checked> IA em cada refresh</label>
+        <button id="btnIaTest">Testar IA</button>
 
-        <label class="chip"><input type="checkbox" id="iaAuto"> IA em cada refresh</label>
-        <button class="chip right" id="btnRefresh">Atualizar agora</button>
+        <label class="chip">Fuso:
+          <select id="tzSel">
+            <option value="America/Sao_Paulo" selected>Brasil (BRT)</option>
+            <option value="UTC">UTC</option>
+            <option value="America/New_York">NY (ET)</option>
+            <option value="Europe/Lisbon">Lisboa</option>
+          </select>
+        </label>
+
+        <button id="btnRefresh">Atualizar agora</button>
+        <small class="muted">Zoom/scroll preservados quando você estiver fora do fim do gráfico.</small>
       </div>
     </div>
   </div>
@@ -86,20 +94,13 @@
         <div class="row"><span id="pairTitleL" class="title">—</span></div>
         <div class="row">
           <label class="chip">Moeda
-            <select id="coinL">
-              <option selected>BTC</option><option>ETH</option><option>BNB</option>
-              <option>SOL</option><option>ADA</option><option>XRP</option>
-            </select>
+            <select id="coinL"><option>BTC</option><option>ETH</option><option>BNB</option><option>SOL</option><option>ADA</option></select>
           </label>
           <label class="chip">Contra
-            <select id="quoteL"><option selected>BRL</option><option>USDT</option></select>
+            <select id="quoteL"><option>BRL</option><option selected>USDT</option></select>
           </label>
           <label class="chip">TF
-            <select id="tfL">
-              <option>1M</option><option selected>3M</option><option>5M</option>
-              <option>15M</option><option>30M</option><option>1H</option>
-              <option>1D</option><option>1mo</option>
-            </select>
+            <select id="tfL"><option>1M</option><option selected>3M</option><option>5M</option><option>15M</option><option>30M</option><option>1H</option><option>1D</option></select>
           </label>
           <label class="chip">Velas
             <select id="lenL"><option>120</option><option selected>360</option><option>720</option><option>1200</option></select>
@@ -126,20 +127,13 @@
         <div class="row"><span id="pairTitleR" class="title">—</span></div>
         <div class="row">
           <label class="chip">Moeda
-            <select id="coinR">
-              <option selected>BTC</option><option>ETH</option><option>BNB</option>
-              <option>SOL</option><option>ADA</option><option>XRP</option>
-            </select>
+            <select id="coinR"><option selected>BTC</option><option>ETH</option><option>BNB</option><option>SOL</option><option>ADA</option></select>
           </label>
           <label class="chip">Contra
             <select id="quoteR"><option>BRL</option><option selected>USDT</option></select>
           </label>
           <label class="chip">TF
-            <select id="tfR">
-              <option>1M</option><option selected>3M</option><option>5M</option>
-              <option>15M</option><option>30M</option><option>1H</option>
-              <option>1D</option><option>1mo</option>
-            </select>
+            <select id="tfR"><option>1M</option><option selected>3M</option><option>5M</option><option>15M</option><option>30M</option><option>1H</option><option>1D</option></select>
           </label>
           <label class="chip">Velas
             <select id="lenR"><option>120</option><option selected>360</option><option>720</option><option>1200</option></select>
@@ -164,84 +158,21 @@
   <footer>Painel Cripto Pro © 2025 — Desenvolvido por Marcelo. Para toda Honra e Glória do Senhor Jesus!</footer>
 </div>
 
-<!-- Modal Assinatura -->
-<div class="modal-back" id="mb">
-  <div class="modal">
-    <h3>Ativar Assinatura</h3>
-    <div class="row"><label class="chip" style="flex:1 1 auto">E-mail
-      <input id="ass_email" placeholder="seu@email.com">
-    </label></div>
-    <div class="row" style="margin-top:8px">
-      <button onclick="closeSub()" class="chip">Cancelar</button>
-      <button onclick="onSaveAndVerify()" class="chip b-blue">Salvar & Verificar</button>
-    </div>
-    <p class="muted" style="margin-top:8px">Seu e-mail será verificado no Apps Script configurado.</p>
-  </div>
-</div>
-
 <!-- Lightweight Charts -->
 <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
 <script>
-/* ========= CONFIG ========= */
-const ENDPOINT = "https://script.google.com/macros/s/AKfycbzAW06MRS1cAhadH1Zndx0MbB4tm3onKmyeNi8xQXNoURS1Ctn_Zx9HCcsfjQ39LfndWA/exec";
-
-/* ========= UTILS ========= */
+/* ===== Helpers ===== */
 const $ = id => document.getElementById(id);
 const fmtNum = (n, d=2) => Number.isFinite(n)? n.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}) : '—';
-const tfMap = { '1M':'1m','3M':'3m','5M':'5m','15M':'15m','30M':'30m','1H':'1h','1D':'1d','1mo':'1M' };
+let tzSelValue = 'America/Sao_Paulo';
+const nowTxt = ()=> new Intl.DateTimeFormat('pt-BR',{dateStyle:'short', timeStyle:'medium', timeZone: tzSelValue}).format(new Date());
+const tfMap = { '1M':'1m','3M':'3m','5M':'5m','15M':'15m','30M':'30m','1H':'1h','1D':'1d' };
 const symbolOf = (c,q)=> (c+q).toUpperCase();
 
-/* ========= SUB ========= */
-function openSub(){ $('mb').style.display='flex'; }
-function closeSub(){ $('mb').style.display='none'; }
-
-function setSubFlag(ok){
-  $('subFlag').textContent = ok? 'ok':'negado';
-  $('subFlag').style.color = ok? '#22c55e':'#fca5a5';
-  $('iaAuto').checked = ok; // habilita IA auto quando ok
-}
-
-async function verifySubscription(email){
-  const body = new URLSearchParams({ action:'verify', email });
-  const res = await fetch(ENDPOINT,{
-    method:'POST',
-    headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
-    body: body.toString()
-  });
-  if(!res.ok) throw new Error('HTTP '+res.status);
-  return await res.json(); // {ok:true|false, plano, expira_em, reason}
-}
-async function onSaveAndVerify(){
-  const email = $('ass_email').value.trim().toLowerCase();
-  if(!email){ alert('Informe seu e-mail.'); return; }
-  try{
-    const r = await verifySubscription(email);
-    if(r.ok){
-      localStorage.setItem('assinatura_email', email);
-      localStorage.setItem('assinatura_status', 'ok');
-      setSubFlag(true);
-      closeSub();
-      alert(`Assinatura ativa (${r.plano}) — expira em ${r.expira_em}`);
-      refreshAll();
-    }else{
-      localStorage.setItem('assinatura_email', email);
-      localStorage.setItem('assinatura_status', 'negado');
-      setSubFlag(false);
-      const msg = ({desconhecido:'E-mail não encontrado',
-                    inativo:'Assinatura inativa',
-                    expirado:'Assinatura expirada',
-                    bad_request:'Requisição inválida'})[r.reason] || ('Falha: '+r.reason);
-      alert('Acesso negado: '+msg);
-    }
-  }catch(e){
-    alert('Falha: '+e.message);
-  }
-}
-
-/* ========= QUOTES ========= */
+/* ===== Top quotes ===== */
 async function fetchTopQuotes(){
   try{
-    const [pU,pB,usdt] = await Promise.all([
+    const [pU, pB, usdt] = await Promise.all([
       fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT').then(r=>r.json()),
       fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCBRL').then(r=>r.json()),
       fetch('https://api.binance.com/api/v3/ticker/price?symbol=USDTBRL').then(r=>r.json()).catch(()=>({price:null}))
@@ -249,11 +180,13 @@ async function fetchTopQuotes(){
     $('q_btcusdt').textContent = fmtNum(+pU.price,2)+' USDT';
     $('q_btcbrl').textContent  = (+pB.price).toLocaleString('pt-BR');
     $('q_usdbrl').textContent  = Number.isFinite(+usdt.price)? fmtNum(+usdt.price,2) : '—';
-    $('lastTs').textContent    = 'Atualizado: '+new Date().toLocaleString('pt-BR');
-  }catch(e){ $('lastTs').textContent = 'Atualizado: erro'; }
+    $('lastTs').textContent    = `Atualizado (${tzSelValue}): ` + nowTxt();
+  }catch(e){
+    $('lastTs').textContent    = `Atualizado (${tzSelValue}): erro`;
+  }
 }
 
-/* ========= DATA ========= */
+/* ===== Dados & Indicadores ===== */
 async function fetchKlines(symbol, interval, limit=360){
   const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
   const arr = await fetch(url).then(r=>r.json());
@@ -268,15 +201,17 @@ async function dayStats(symbol){
   }catch{ return { pct:null }; }
 }
 
-/* ========= INDICADORES ========= */
+/* === SuperTrend (ATR RMA) === */
 function rma(vals,len){ const out=[]; let p=null,a=1/len;
-  for(let i=0;i<vals.length;i++){ const v=vals[i]; p=(p==null)?v:(p+a*(v-p)); out.push(p); } return out;
+  for(let i=0;i<vals.length;i++){ const v=vals[i]; p = (p==null)? v : (p + a*(v-p)); out.push(p); }
+  return out;
 }
 function trueRange(h,l,cPrev){ return Math.max(h-l, Math.abs(h-cPrev), Math.abs(l-cPrev)); }
 function calcSuperTrend(ohlc,len=10,mul=3){
   const n=ohlc.length; if(!n) return {dir:0, atr:0, line:[]};
   const tr=[]; for(let i=0;i<n;i++){ const cp=i>0? ohlc[i-1].close : ohlc[i].close; tr.push(trueRange(ohlc[i].high, ohlc[i].low, cp)); }
-  const atr=rma(tr,len); const st=new Array(n).fill(null), dir=new Array(n).fill(0);
+  const atr=rma(tr,len);
+  const st=new Array(n).fill(null), dir=new Array(n).fill(0);
   for(let i=0;i<n;i++){
     const o=ohlc[i], mid=(o.high+o.low)/2, ub=mid+mul*atr[i], lb=mid-mul*atr[i];
     if(i===0){ st[i]=ub; dir[i]=-1; continue; }
@@ -286,6 +221,7 @@ function calcSuperTrend(ohlc,len=10,mul=3){
   }
   return { dir: dir[n-1], atr: atr[n-1], line: st };
 }
+/* === MKR (suavização + envelopes) === */
 function K(kernel,x,bw){ const u=x/bw; return Math.exp(-0.5*u*u)/Math.sqrt(2*Math.PI); }
 function mkrSmooth(arr,bw=14,dev=2){
   const n=arr.length; const mean=new Array(n), up=new Array(n), dn=new Array(n);
@@ -299,18 +235,36 @@ function mkrSmooth(arr,bw=14,dev=2){
   return { mean, up, dn, slope, delta: slope };
 }
 
-/* ========= CHARTS ========= */
+/* ===== Formatadores de tempo por fuso ===== */
+function makeTimeFormatters(tz){
+  const fmtTime   = new Intl.DateTimeFormat('pt-BR',{hour:'2-digit',minute:'2-digit',second:undefined,timeZone:tz});
+  const fmtDay    = new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'2-digit',timeZone:tz});
+  const fmtFull   = new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:tz});
+  const timeFormatter = (time)=>{
+    const ts = (typeof time==='object' && time.timestamp) ? time.timestamp : time;
+    return fmtFull.format(new Date(ts*1000));
+  };
+  const tickMarkFormatter = (time, tickMarkType)=>{
+    const ts = (typeof time==='object' && time.timestamp) ? time.timestamp : time;
+    if (tickMarkType === 0 || tickMarkType===1) return fmtDay.format(new Date(ts*1000));
+    return fmtTime.format(new Date(ts*1000));
+  };
+  return { timeFormatter, tickMarkFormatter };
+}
+
+/* ===== Gráficos ===== */
 function mkChart(containerId){
+  const { timeFormatter, tickMarkFormatter } = makeTimeFormatters(tzSelValue);
   const el = $(containerId);
   const chart = LightweightCharts.createChart(el,{
     layout:{ background:{ color:'#0e1627' }, textColor:'#cbd5e1' },
     grid:{ vertLines:{ color:'#1f2a40'}, horzLines:{ color:'#1f2a40'} },
     rightPriceScale:{ borderColor:'#1f2a40' },
-    timeScale:{ borderColor:'#1f2a40', timeVisible:true, secondsVisible:false },
+    timeScale:{ borderColor:'#1f2a40', timeVisible:true, secondsVisible:false, tickMarkFormatter },
     crosshair:{ mode:LightweightCharts.CrosshairMode.Normal },
     handleScroll:{ mouseWheel:true, pressedMouseMove:true },
     handleScale:{ axisPressedMouseMove:true, mouseWheel:true, pinch:true },
-    localization:{ locale:'pt-BR' }
+    localization:{ locale:'pt-BR', timeFormatter }
   });
   const candle = chart.addCandlestickSeries({
     upColor:'#16a34a', downColor:'#ef4444', borderVisible:false,
@@ -327,6 +281,14 @@ function mkChart(containerId){
 const L = mkChart('chartL');
 const R = mkChart('chartR');
 
+function reapplyTimezone(chart){
+  const { timeFormatter, tickMarkFormatter } = makeTimeFormatters(tzSelValue);
+  chart.applyOptions({
+    localization:{ locale:'pt-BR', timeFormatter },
+    timeScale: { tickMarkFormatter }
+  });
+}
+
 function setDataPreserveView(series, chart, data){
   const ts = chart.timeScale();
   const atRightEdge = Math.abs(ts.scrollPosition()) < 1e-2;
@@ -335,11 +297,65 @@ function setDataPreserveView(series, chart, data){
   if(!atRightEdge && vr){ ts.setVisibleLogicalRange(vr); } else { ts.scrollToRealTime(); }
 }
 
-/* ========= BADGES ========= */
-function setBadge(el, text, cls){ el.className='badge '+cls; el.textContent=text; }
-function pctClass(p){ return p>0? 'b-green' : (p<0? 'b-red' : 'b-yellow'); }
+/* ===== IA (JSONP) ===== */
+// helper JSONP genérico
+function jsonp(url, params={}, cbField='callback'){
+  return new Promise((resolve, reject)=>{
+    const cbName = 'iaCB_' + Math.random().toString(36).slice(2);
+    const s = document.createElement('script');
+    const usp = new URLSearchParams(params);
+    usp.set(cbField, cbName);
+    const sep = url.includes('?') ? '&' : '?';
+    s.src = url + sep + usp.toString();
 
-/* ========= HEADERS ========= */
+    let finished = false;
+    window[cbName] = (data)=>{ finished=true; cleanup(); resolve(data); };
+    s.onerror = ()=>{ cleanup(); reject(new Error('Erro ao carregar JSONP')); };
+    document.head.appendChild(s);
+
+    function cleanup(){
+      try{ document.head.removeChild(s); }catch(_){}
+      try{ delete window[cbName]; }catch(_){}
+    }
+    setTimeout(()=>{ if(!finished){ cleanup(); reject(new Error('Timeout JSONP')); } }, 10000);
+  });
+}
+
+function getIaConfig(){
+  return { url: $('iaUrl').value.trim(), key: $('iaKey').value.trim(), auto: $('iaAuto').checked };
+}
+
+// >>> Substituída: usa JSONP (sem CORS)
+async function callIaWebhook(payload){
+  const { url, key } = getIaConfig();
+  if(!url) throw new Error('IA URL vazia');
+  // compacta o payload para URL
+  const compact = {
+    symbol: payload.symbol,
+    tf: payload.tf,
+    tz: payload.tz,
+    local: payload.local,
+    last: (payload.ohlc||[]).slice(-120)
+  };
+  const q = btoa(JSON.stringify(compact));
+  const params = { q };
+  // se quiser anexar uma chave via query: params.key = key;
+  if (key) params.key = key;
+  const res = await jsonp(url, params);  // espera { ok:true, advice:"..." }
+  if(!res || res.ok !== true) throw new Error(res && res.error ? res.error : 'Falha na IA');
+  return res;
+}
+
+function applyIaAdvice(side, obj){
+  const el = side==='L' ? $('iaBadgeL') : $('iaBadgeR');
+  const txt = obj && obj.advice ? obj.advice : '—';
+  const cls = /compr/i.test(txt) ? 'b-green' : (/vend/i.test(txt) ? 'b-red' : 'b-yellow');
+  el.className = 'badge '+cls;
+  el.textContent = 'IA: '+txt;
+}
+
+/* ===== Cabeçalho & badges ===== */
+function pctClass(p){ return p>0? 'b-green' : (p<0? 'b-red' : 'b-yellow'); }
 async function updatePairHeader(side, symbol, tf){
   const el = side==='L'? $('pairTitleL') : $('pairTitleR');
   try{
@@ -353,32 +369,25 @@ async function updatePairHeader(side, symbol, tf){
     const pCls = pctClass(pct);
     const quote = symbol.endsWith('USDT')?'USDT':'BRL';
     const pairLabel = `${symbol.slice(0,-(quote==='USDT'?4:3))}/${quote}`;
-    el.innerHTML = `${pairLabel} <span class="sub">(${tf})</span>
+    el.innerHTML = `
+      ${pairLabel}
+      <span class="sub">(${tf})</span>
       <span class="badge">${quote==='USDT'? fmtNum(price,2)+' USDT' : price.toLocaleString('pt-BR')+' BRL'}</span>
-      <span class="badge ${pCls}" style="margin-left:6px">${pctTxt}</span>`;
-    const pctBadge = side==='L'? $('pctBadgeL') : $('pctBadgeR');
-    setBadge(pctBadge, `24h: ${pctTxt}`, pCls);
-  }catch{ el.textContent = symbol + ` (${tf})`; }
+      <span class="badge ${pCls}" style="margin-left:6px">${pctTxt}</span>
+    `;
+    (side==='L'? $('pctBadgeL'): $('pctBadgeR')).className='badge '+pCls;
+    (side==='L'? $('pctBadgeL'): $('pctBadgeR')).textContent='24h: '+pctTxt;
+  }catch{
+    el.textContent = symbol + ` (${tf})`;
+  }
 }
-
-/* ========= LÓGICA DE SINAIS (bloqueia quando sem assinatura) ========= */
+function setBadge(el, text, cls){ el.className='badge '+cls; el.textContent=text; }
 function decideLocalAndBadges(side, data){
-  const signed = (localStorage.getItem('assinatura_status')==='ok');
   if(!data.length){
-    const ids = side==='L' ? ['tendL','recL','stBadgeL','mkrBadgeL','atrBadgeL','iaBadgeL']
-                           : ['tendR','recR','stBadgeR','mkrBadgeR','atrBadgeR','iaBadgeR'];
+    const ids = side==='L' ? ['tendL','recL','stBadgeL','mkrBadgeL','atrBadgeL'] : ['tendR','recR','stBadgeR','mkrBadgeR','atrBadgeR'];
     ids.forEach(id=> setBadge($(id),'—',''));
-    return {tend:'Mista', rec:'Aguardar'};
+    applyIaAdvice(side, {advice:'—'}); return {tend:'Mista', rec:'Aguardar'};
   }
-  // se não tiver assinatura > não calcula sinais
-  if(!signed){
-    const ids = side==='L' ? ['tendL','recL','stBadgeL','mkrBadgeL','atrBadgeL','iaBadgeL']
-                           : ['tendR','recR','stBadgeR','mkrBadgeR','atrBadgeR','iaBadgeR'];
-    ids.forEach(id=> setBadge($(id),'—',''));
-    return {tend:'Mista', rec:'Aguardar'};
-  }
-
-  // Com assinatura:
   const st = calcSuperTrend(data, 10, 3);
   const closes = data.map(d=>d.close);
   const mkr = mkrSmooth(closes, 14, 2);
@@ -397,26 +406,23 @@ function decideLocalAndBadges(side, data){
   if(sameBull){ rec='Comprar (confluência)'; recCls='b-green'; }
   else if(sameBear){ rec='Vender / reduzir'; recCls='b-red'; }
 
-  // aplica
   if(side==='L'){
     setBadge($('tendL'), `Tendência: ${tendencia}`, tendCls);
     setBadge($('recL'),  `Recomendação: ${rec}`, recCls);
     setBadge($('stBadgeL'), stText, stCls);
     setBadge($('mkrBadgeL'), mkrText, mkrCls);
     setBadge($('atrBadgeL'), `ATR: ${fmtNum(atr,2)}`, 'b-blue');
-    setBadge($('iaBadgeL'), `IA: ${rec}`, recCls);
   }else{
     setBadge($('tendR'), `Tendência: ${tendencia}`, tendCls);
     setBadge($('recR'),  `Recomendação: ${rec}`, recCls);
     setBadge($('stBadgeR'), stText, stCls);
     setBadge($('mkrBadgeR'), mkrText, mkrCls);
     setBadge($('atrBadgeR'), `ATR: ${fmtNum(atr,2)}`, 'b-blue');
-    setBadge($('iaBadgeR'), `IA: ${rec}`, recCls);
   }
   return {tend:tendencia, rec};
 }
 
-/* ========= LOAD SIDE ========= */
+/* ===== Carregar por lado (com IA) ===== */
 async function loadSide(side){
   const coin  = (side==='L'? $('coinL').value : $('coinR').value);
   const quote = (side==='L'? $('quoteL').value : $('quoteR').value);
@@ -430,40 +436,66 @@ async function loadSide(side){
   else          setDataPreserveView(R.candle, R.chart, data);
 
   updatePairHeader(side, symbol, tfLbl);
-  decideLocalAndBadges(side, data);
+
+  // cálculo local (sempre)
+  const local = decideLocalAndBadges(side, data);
+
+  // IA (opcional via JSONP)
+  const iaCfg = getIaConfig();
+  if(iaCfg.auto && data.length){
+    try{
+      const payload = { symbol, tf: tfLbl, tz: tzSelValue, ohlc: data.slice(-120), local };
+      const resp = await callIaWebhook(payload);
+      applyIaAdvice(side, resp);
+    }catch(err){
+      console.warn('[IA] falhou, fallback local:', err);
+      applyIaAdvice(side, {advice: local.rec});
+    }
+  }else{
+    applyIaAdvice(side, {advice: local.rec});
+  }
 }
 
-/* ========= REFRESH ========= */
+/* ===== Refresh geral ===== */
 async function refreshAll(){
   await fetchTopQuotes();
   await Promise.all([loadSide('L'), loadSide('R')]);
 }
 
-/* ========= CONTROLES ========= */
+/* ===== Controles ===== */
 ['coinL','quoteL','tfL','lenL'].forEach(id=> $(id).addEventListener('change', ()=> loadSide('L')));
 ['coinR','quoteR','tfR','lenR'].forEach(id=> $(id).addEventListener('change', ()=> loadSide('R')));
 $('btnRefresh').onclick = refreshAll;
-$('btnSub').onclick = openSub;
 
-/* ========= AUTO ========= */
+/* ===== Botão Testar IA ===== */
+$('btnIaTest')?.addEventListener('click', async ()=>{
+  try{
+    const res = await jsonp($('iaUrl').value.trim(), { sample: 1 });
+    alert('IA OK: '+ (res && (res.message||res.advice||'sucesso')));
+  }catch(e){
+    alert('Falha ao chamar IA: '+e.message);
+  }
+});
+
+/* ===== Fuso horário ===== */
+$('tzSel').addEventListener('change', ()=>{
+  tzSelValue = $('tzSel').value;
+  reapplyTimezone(L.chart);
+  reapplyTimezone(R.chart);
+  $('lastTs').textContent = `Atualizado (${tzSelValue}): ` + nowTxt();
+});
+
+/* ===== Auto refresh ===== */
 let timer=null;
-function setAuto(ms){ if(timer) clearInterval(timer); if(ms>0) timer=setInterval(refreshAll, ms); }
+function setAuto(ms){ if(timer) clearInterval(timer); if(ms>0) timer = setInterval(refreshAll, ms); }
 $('autoSel').onchange = ()=> setAuto(+$('autoSel').value);
 
-/* ========= START ========= */
+/* ===== Start ===== */
 (async ()=>{
-  // estado salvo
-  const savedEmail = localStorage.getItem('assinatura_email')||'';
-  const savedStatus= localStorage.getItem('assinatura_status')||'negado';
-  if(savedEmail) $('ass_email').value = savedEmail;
-  setSubFlag(savedStatus==='ok');
-
-  // presets
   $('coinL').value='BTC'; $('quoteL').value='BRL';  $('tfL').value='3M'; $('lenL').value='360';
   $('coinR').value='BTC'; $('quoteR').value='USDT'; $('tfR').value='3M'; $('lenR').value='360';
-
   await refreshAll();
-  setAuto(+$('autoSel').value);
+  setAuto(+$('autoSel').value); // 5s default
 })();
 </script>
 </body>
