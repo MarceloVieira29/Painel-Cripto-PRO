@@ -4,6 +4,37 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Painel Cripto PRO — 2 Gráficos + ST/MKR + IA + Contas</title>
+
+<!-- Lightweight Charts -->
+<script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+
+<!-- Firebase (modular v10 CDN) -->
+<script type="module">
+  // ===== Firebase SDKs (modular) =====
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
+  import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
+
+  // ====== SEU CONFIG (copiado do console) ======
+  const firebaseConfig = {
+    apiKey: "AIzaSyAN70DLpn18XA11_JwjtkodpaOjquKEs3U",
+    authDomain: "painel-cripto-pro.firebaseapp.com",
+    projectId: "painel-cripto-pro",
+    storageBucket: "painel-cripto-pro.firebasestorage.app",
+    messagingSenderId: "897004329063",
+    appId: "1:897004329063:web:b486598ff0f42fb52e5cc2",
+    measurementId: "G-82VVH8YF7Y"
+  };
+
+  // ====== Inicialização ======
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db   = getFirestore(app);
+
+  // Expor no window para outros scripts do HTML
+  window._fb = { app, auth, db, onAuthStateChanged, signInWithEmailAndPassword, signOut, doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs };
+</script>
+
 <style>
   :root{
     --bg:#0b1220;--panel:#0e1627;--soft:#111b2f;--muted:#334155;--text:#e5e7eb;
@@ -17,10 +48,10 @@
   .chip{background:var(--soft);border:1px solid #243149;border-radius:10px;padding:6px 10px;display:inline-flex;gap:8px;align-items:center;font-size:14px}
   .muted{color:#9aa8bf}
   select,input,button{background:#0b1220;color:var(--text);border:1px solid #2c3a52;border-radius:10px;padding:6px 10px}
-  input{min-width:200px}
+  input{min-width:220px}
   button{cursor:pointer} button:hover{filter:brightness(1.12)}
   .grid{display:grid;gap:16px;grid-template-columns:1fr 1fr;margin-top:12px}
-  .card{background:var(--panel);border:1px solid #1f2a40;border-radius:12px;padding:12px;min-height:460px;position:relative}
+  .card{background:var(--panel);border:1px solid #1f2a40;border-radius:12px;padding:12px;min-height:460px}
   .headRow{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
   .title{font-weight:700}
   .title .sub{font-weight:500;font-size:12px;color:#9aa8bf;margin-left:6px}
@@ -29,38 +60,22 @@
   .b-red{border-color:#7f1d1d;color:#fecaca;background:#3b0a0a}
   .b-yellow{border-color:#854d0e;color:#fde68a;background:#3a2a06}
   .b-blue{border-color:#1d4ed8;color:#dbeafe;background:#0b1e43}
-  .chart{height:540px}
+  .chart{height:520px}
   .trendRow{display:flex;gap:8px;flex-wrap:wrap}
   .split{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
-  footer{margin-top:12px;color:#9aa8bf;font-size:12px;text-align:center}
-
-  /* Overlay de bloqueio enquanto usuário não validado */
-  .overlay{
-    position:absolute; inset:0; display:none; align-items:center; justify-content:center;
-    background:rgba(11,18,32,.82); backdrop-filter:blur(2px); border-radius:12px; z-index:5
-  }
-  .overlay .inner{background:#0e1627;border:1px solid #243149;border-radius:10px;padding:16px;max-width:560px}
-  .overlay.visible{display:flex}
-
-  /* Painel de auth/admin */
-  .dock{position:fixed; right:16px; bottom:16px; display:flex; flex-direction:column; gap:8px; z-index:50}
-  .fab{background:#0b1220;border:1px solid #2c3a52;color:#e5e7eb;border-radius:999px;padding:10px 14px;font-weight:600}
-  .panel{
-    position:fixed; right:16px; bottom:72px; width:360px; max-height:70vh; overflow:auto;
-    background:#0e1627;border:1px solid #1f2a40;border-radius:12px;padding:12px; display:none; z-index:49
-  }
-  .panel.visible{display:block}
-  .panel h3{margin:6px 0 8px 0;font-size:16px}
-  .panel .line{display:flex; gap:8px; align-items:center; margin:6px 0}
-
-  .disabled{opacity:.5; pointer-events:none}
+  .hide{display:none}
+  .right{margin-left:auto}
+  .admin{background:#0d1f33;border:1px dashed #2a456d;padding:10px;border-radius:10px}
+  .danger{background:#3a0a0a;border-color:#7f1d1d}
+  .success{background:#052e1a;border-color:#064e3b}
+  .pill{padding:4px 10px;border-radius:999px;border:1px solid #2b3750}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Painel Cripto PRO — Candles (2 painéis) + Tendência (ST/MKR) + IA + Contas</h1>
 
-  <!-- Barra topo -->
+  <!-- Topbar -->
   <div class="topbar">
     <div class="split">
       <div class="row">
@@ -75,7 +90,6 @@
           <select id="autoSel">
             <option value="0">Off</option>
             <option value="2000">2s</option>
-            <option value="3000">3s</option>
             <option value="5000" selected>5s</option>
             <option value="10000">10s</option>
             <option value="15000">15s</option>
@@ -87,9 +101,9 @@
           <input id="iaUrl" placeholder="https://seu-endpoint-ia/exec">
         </label>
         <label class="chip">Chave
-          <input id="iaKey" placeholder="Bearer xxxxx">
+          <input id="iaKey" placeholder="Bearer xxxxx (opcional)">
         </label>
-        <label class="chip"><input type="checkbox" id="iaAuto" checked> IA em cada refresh</label>
+        <label class="chip"><input type="checkbox" id="iaAuto"> IA em cada refresh</label>
         <button id="btnIaTest">Testar IA</button>
 
         <label class="chip">Fuso:
@@ -101,43 +115,66 @@
           </select>
         </label>
 
-        <button id="btnRefresh">Atualizar agora</button>
+        <span class="chip right" id="authStatus">Sessão: <b>desconectado</b></span>
+        <button id="btnLogin">Entrar</button>
+        <button id="btnLogout" class="hide">Sair</button>
       </div>
     </div>
   </div>
 
+  <!-- Admin section -->
+  <div id="adminBox" class="admin hide" style="margin-top:12px">
+    <div class="row">
+      <b>Admin</b>
+      <span class="pill muted">Convites & Permissões</span>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <label class="chip">Convidar e-mail
+        <input id="invEmail" placeholder="novo@cliente.com">
+      </label>
+      <label class="chip">Plano
+        <select id="invPlan">
+          <option value="trial">trial</option>
+          <option value="mensal">mensal</option>
+          <option value="anual">anual</option>
+        </select>
+      </label>
+      <button id="btnInvite">Criar/Atualizar Convite</button>
+
+      <label class="chip">UID p/ permissões
+        <input id="permUid" placeholder="cole o UID do usuário">
+      </label>
+      <button id="btnGrantPerm">Aplicar permissões padrão (ST/MKR/IA + pares + TFs)</button>
+      <span class="muted">Dica: pegue o UID em Authentication → Users</span>
+    </div>
+  </div>
+
   <!-- Painéis -->
-  <div class="grid">
+  <div id="gates" class="chip danger" style="margin-top:10px">Aguarde: validando acesso…</div>
+
+  <div id="panel" class="grid hide" style="opacity:0.98">
     <!-- ESQUERDA -->
     <div class="card" id="cardL">
       <div class="headRow">
         <div class="row"><span id="pairTitleL" class="title">—</span></div>
-        <div class="row" id="controlsL">
+        <div class="row">
           <label class="chip">Moeda
-            <select id="coinL">
-              <option>BTC</option><option>ETH</option><option>BNB</option><option>SOL</option><option>ADA</option>
-              <option>XRP</option><option>DOGE</option><option>DOT</option><option>MATIC</option><option>AVAX</option>
-            </select>
+            <select id="coinL"></select>
           </label>
           <label class="chip">Contra
             <select id="quoteL"><option>BRL</option><option selected>USDT</option></select>
           </label>
           <label class="chip">TF
-            <select id="tfL">
-              <option>1M</option><option selected>3M</option><option>5M</option><option>15M</option>
-              <option>30M</option><option>1H</option><option>1D</option><option>1MO</option>
-            </select>
+            <select id="tfL"></select>
           </label>
           <label class="chip">Velas
             <select id="lenL"><option>120</option><option selected>360</option><option>720</option><option>1200</option></select>
           </label>
         </div>
       </div>
-
       <div id="chartL" class="chart"></div>
-
-      <div class="row" style="margin-top:10px" id="trendRowL">
-        <div class="trendRow">
+      <div class="row" style="margin-top:10px">
+        <div class="trendRow" id="trendL">
           <span class="badge b-yellow" id="tendL">Tendência: —</span>
           <span class="badge b-blue" id="recL">Recomendação: —</span>
           <span class="badge" id="stBadgeL">ST: —</span>
@@ -147,44 +184,30 @@
           <span class="badge" id="iaBadgeL">IA: —</span>
         </div>
       </div>
-
-      <div class="overlay" id="lockL">
-        <div class="inner">
-          <b>Acesso restrito.</b><br/> Peça ao administrador a liberação (ST/MKR/IA) ou aguarde o convite ser aplicado ao seu login.
-        </div>
-      </div>
     </div>
 
     <!-- DIREITA -->
     <div class="card" id="cardR">
       <div class="headRow">
         <div class="row"><span id="pairTitleR" class="title">—</span></div>
-        <div class="row" id="controlsR">
+        <div class="row">
           <label class="chip">Moeda
-            <select id="coinR">
-              <option selected>BTC</option><option>ETH</option><option>BNB</option><option>SOL</option><option>ADA</option>
-              <option>XRP</option><option>DOGE</option><option>DOT</option><option>MATIC</option><option>AVAX</option>
-            </select>
+            <select id="coinR"></select>
           </label>
           <label class="chip">Contra
             <select id="quoteR"><option>BRL</option><option selected>USDT</option></select>
           </label>
           <label class="chip">TF
-            <select id="tfR">
-              <option>1M</option><option selected>3M</option><option>5M</option><option>15M</option>
-              <option>30M</option><option>1H</option><option>1D</option><option>1MO</option>
-            </select>
+            <select id="tfR"></select>
           </label>
           <label class="chip">Velas
             <select id="lenR"><option>120</option><option selected>360</option><option>720</option><option>1200</option></select>
           </label>
         </div>
       </div>
-
       <div id="chartR" class="chart"></div>
-
-      <div class="row" style="margin-top:10px" id="trendRowR">
-        <div class="trendRow">
+      <div class="row" style="margin-top:10px">
+        <div class="trendRow" id="trendR">
           <span class="badge b-yellow" id="tendR">Tendência: —</span>
           <span class="badge b-blue" id="recR">Recomendação: —</span>
           <span class="badge" id="stBadgeR">ST: —</span>
@@ -194,551 +217,360 @@
           <span class="badge" id="iaBadgeR">IA: —</span>
         </div>
       </div>
-
-      <div class="overlay" id="lockR">
-        <div class="inner">
-          <b>Acesso restrito.</b><br/> Peça ao administrador a liberação (ST/MKR/IA) ou aguarde o convite ser aplicado ao seu login.
-        </div>
-      </div>
     </div>
   </div>
 
-  <footer>Painel Cripto Pro © 2025 — Desenvolvido por Marcelo. Para toda Honra e Glória do Senhor Jesus!</footer>
+  <footer style="margin-top:10px;color:#9aa8bf;font-size:12px;text-align:center">
+    Painel Cripto Pro © 2025 — Desenvolvido por Marcelo. Para toda Honra e Glória do Senhor Jesus!
+  </footer>
 </div>
 
-<!-- FLOATING AUTH / ADMIN -->
-<div class="dock">
-  <button class="fab" id="btnAuthPanel">Conta ▾</button>
-  <button class="fab" id="btnAdminPanel" style="display:none">Admin ▾</button>
-
-  <div class="panel" id="authPanel">
-    <h3>Entrar / Registrar</h3>
-    <div class="line"><input id="authEmail" placeholder="email@exemplo.com"></div>
-    <div class="line"><input id="authPass" type="password" placeholder="senha"></div>
-    <div class="line">
-      <button id="btnLogin">Entrar</button>
-      <button id="btnRegister">Registrar</button>
-      <button id="btnLogout" class="muted">Sair</button>
+<!-- Login Modal super simples -->
+<div id="loginModal" class="hide" style="position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center">
+  <div style="background:#0e1627;border:1px solid #1f2a40;border-radius:12px;padding:16px;min-width:320px">
+    <h3 style="margin:0 0 10px 0">Entrar</h3>
+    <div class="row"><input id="loginEmail" placeholder="email"/></div>
+    <div class="row" style="margin-top:6px"><input id="loginPass" type="password" placeholder="senha"/></div>
+    <div class="row" style="margin-top:10px">
+      <button id="loginGo">Entrar</button>
+      <button id="loginCancel">Cancelar</button>
+      <span id="loginMsg" class="muted"></span>
     </div>
-    <div class="line muted" id="authInfo">—</div>
-  </div>
-
-  <div class="panel" id="adminPanel">
-    <h3>Admin — Convites & Permissões</h3>
-    <div class="muted">Somente admins podem ver isto.</div>
-    <hr>
-    <div class="line"><input id="invEmail" placeholder="email do usuário"></div>
-    <div class="line">
-      <label>Role:
-        <select id="invRole"><option value="user">user</option><option value="admin">admin</option></select>
-      </label>
-    </div>
-    <div class="line">Recursos:
-      <label><input type="checkbox" id="invST" checked> ST</label>
-      <label><input type="checkbox" id="invMKR" checked> MKR</label>
-      <label><input type="checkbox" id="invIA" checked> IA</label>
-    </div>
-    <div class="line">Pares permitidos (vírgulas):<br>
-      <input id="invPairs" value="BTC,ETH,BNB,SOL,ADA">
-    </div>
-    <div class="line">TFs permitidos (vírgulas):<br>
-      <input id="invTFs" value="1m,3m,5m,15m,30m,1h,1d,1mo">
-    </div>
-    <div class="line">
-      <button id="btnCreateInvite">Criar/Atualizar Convite</button>
-      <button id="btnListInvites">Listar Convites</button>
-    </div>
-    <div class="line muted" id="adminInfo">—</div>
-    <div id="invList" class="muted" style="font-size:12px;"></div>
   </div>
 </div>
 
-<!-- Lightweight Charts -->
-<script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+<script>
+// ===== Helpers UI =====
+const $ = id => document.getElementById(id);
+const fmtNum  = (n, d=2) => Number.isFinite(n)? n.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}) : '—';
+let tz = 'America/Sao_Paulo';
+const nowTxt = ()=> new Intl.DateTimeFormat('pt-BR',{dateStyle:'short', timeStyle:'medium', timeZone: tz}).format(new Date());
+const tfMap = { '1m':'1m','3m':'3m','5m':'5m','15m':'15m','30m':'30m','1h':'1h','1d':'1d','1mo':'1M' }; // Binance usa '1M' para 1 mês
+const defaultPairs = ["BTC","ETH","BNB","SOL","ADA","XRP","DOGE","DOT","MATIC","LTC"];
+let FEATURES = { st:false, mkr:false, ia:false };
+let ALLOWED_PAIRS = defaultPairs.slice();
+let ALLOWED_TFS = ["3m","5m","15m","30m","1h","1d","1mo"];
+let userDoc = null;
 
-<!-- Firebase SDKs (modular v10+) -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
-  import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
-  import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
-
-  /* ========== CONFIG ==========
-     TROQUE abaixo pelo seu config Web do Firebase:
-  */
-  const firebaseConfig = FIREBASE_CONFIG_AQUI;
-
-  // UID admin (bootstrap no cliente, além do role: "admin" no Firestore)
-  const BOOTSTRAP_ADMIN_UID = "jImED8EG4eYhIPJ0ZLFgfogU8rB2";
-
-  // ====== Estado global ======
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db   = getFirestore(app);
-
-  const $ = id => document.getElementById(id);
-  const fmtNum = (n, d=2) => Number.isFinite(n)? n.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}) : '—';
-  let tzSelValue = localStorage.getItem('tzSel') || 'America/Sao_Paulo';
-  let user = null;             // auth user
-  let profile = null;          // users/{uid}
-  let isAdmin = false;         // admin flag
-  let perms = {                // permissões efetivas
-    features:{ st:false, mkr:false, ia:false },
-    pairs:["BTC","ETH","BNB","SOL","ADA","XRP","DOGE","DOT","MATIC","AVAX"],
-    tfs:["1m","3m","5m","15m","30m","1h","1d","1mo"]
-  };
-
-  // Persistência local de IA/tz/auto
-  $('iaUrl').value = localStorage.getItem('iaUrl') || '';
-  $('iaKey').value = localStorage.getItem('iaKey') || '';
-  $('iaAuto').checked = (localStorage.getItem('iaAuto') ?? '1') !== '0';
-  $('tzSel').value = tzSelValue;
-
-  $('iaUrl').onchange = ()=> localStorage.setItem('iaUrl', $('iaUrl').value.trim());
-  $('iaKey').onchange = ()=> localStorage.setItem('iaKey', $('iaKey').value.trim());
-  $('iaAuto').onchange= ()=> localStorage.setItem('iaAuto', $('iaAuto').checked?'1':'0');
-  $('tzSel').onchange = ()=> { tzSelValue = $('tzSel').value; localStorage.setItem('tzSel', tzSelValue); reapplyTimezone(L.chart); reapplyTimezone(R.chart); updateLastTs(); };
-
-  // ======== Cotações topo ========
-  async function fetchTopQuotes(){
-    try{
-      const [pU, pB, usdt] = await Promise.all([
-        fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT').then(r=>r.json()),
-        fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCBRL').then(r=>r.json()),
-        fetch('https://api.binance.com/api/v3/ticker/price?symbol=USDTBRL').then(r=>r.json()).catch(()=>({price:null}))
-      ]);
-      $('q_btcusdt').textContent = fmtNum(+pU.price,2)+' USDT';
-      $('q_btcbrl').textContent  = (+pB.price).toLocaleString('pt-BR');
-      $('q_usdbrl').textContent  = Number.isFinite(+usdt.price)? fmtNum(+usdt.price,2) : '—';
-      updateLastTs();
-    }catch(e){
-      $('lastTs').textContent = `Atualizado (${tzSelValue}): erro`;
-    }
+// ===== Quotes topo =====
+async function fetchTopQuotes(){
+  try{
+    const [pU, pB, usdt] = await Promise.all([
+      fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT').then(r=>r.json()),
+      fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCBRL').then(r=>r.json()),
+      fetch('https://api.binance.com/api/v3/ticker/price?symbol=USDTBRL').then(r=>r.json()).catch(()=>({price:null}))
+    ]);
+    $('q_btcusdt').textContent = fmtNum(+pU.price,2)+' USDT';
+    $('q_btcbrl').textContent  = (+pB.price).toLocaleString('pt-BR');
+    $('q_usdbrl').textContent  = Number.isFinite(+usdt.price)? fmtNum(+usdt.price,2) : '—';
+    $('lastTs').textContent    = `Atualizado (${tz}): ` + nowTxt();
+  }catch(e){
+    $('lastTs').textContent    = `Atualizado (${tz}): erro`;
   }
-  function updateLastTs(){
-    const nowTxt = new Intl.DateTimeFormat('pt-BR',{dateStyle:'short', timeStyle:'medium', timeZone: tzSelValue}).format(new Date());
-    $('lastTs').textContent = `Atualizado (${tzSelValue}): ` + nowTxt;
+}
+
+// ===== Dados Binance =====
+async function fetchKlines(symbol, interval, limit=360){
+  const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+  const arr = await fetch(url).then(r=>r.json());
+  if(!Array.isArray(arr)) return [];
+  return arr.map(k=>({ time: Math.floor(k[0]/1000), open:+k[1], high:+k[2], low:+k[3], close:+k[4] }));
+}
+async function dayStats(symbol){
+  try{
+    const j = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`).then(r=>r.json());
+    const pct = j && j.priceChangePercent!=null ? +j.priceChangePercent : null;
+    return { pct };
+  }catch{ return { pct:null }; }
+}
+
+// ===== Indicadores (mesmos do seu painel) =====
+function rma(vals,len){ const out=[]; let p=null,a=1/len; for(let i=0;i<vals.length;i++){ const v=vals[i]; p = (p==null)? v : (p + a*(v-p)); out.push(p);} return out; }
+function trueRange(h,l,cPrev){ return Math.max(h-l, Math.abs(h-cPrev), Math.abs(l-cPrev)); }
+function calcSuperTrend(ohlc,len=10,mul=3){
+  const n=ohlc.length; if(!n) return {dir:0, atr:0, line:[]};
+  const tr=[]; for(let i=0;i<n;i++){ const cp=i>0? ohlc[i-1].close : ohlc[i].close; tr.push(trueRange(ohlc[i].high, ohlc[i].low, cp)); }
+  const atr=rma(tr,len); const st=new Array(n).fill(null), dir=new Array(n).fill(0);
+  for(let i=0;i<n;i++){
+    const o=ohlc[i], mid=(o.high+o.low)/2, ub=mid+mul*atr[i], lb=mid-mul*atr[i];
+    if(i===0){ st[i]=ub; dir[i]=-1; continue; }
+    const prevSt=st[i-1], prevDir=dir[i-1];
+    if(prevDir===-1){ const newUb=Math.min(ub,prevSt); st[i]=(o.close>newUb)?lb:newUb; dir[i]=(o.close>newUb)?+1:-1; }
+    else { const newLb=Math.max(lb,prevSt); st[i]=(o.close<newLb)?ub:newLb; dir[i]=(o.close<newLb)?-1:+1; }
   }
-
-  // ====== Gráficos / Indicadores ======
-  const tfMap = { '1M':'1m','3M':'3m','5M':'5m','15M':'15m','30M':'30m','1H':'1h','1D':'1d','1MO':'1mo' };
-  const symbolOf = (c,q)=> (c+q).toUpperCase();
-  function pctClass(p){ return p>0? 'b-green' : (p<0? 'b-red' : 'b-yellow'); }
-
-  function makeTimeFormatters(tz){
-    const fmtTime   = new Intl.DateTimeFormat('pt-BR',{hour:'2-digit',minute:'2-digit', timeZone:tz});
-    const fmtDay    = new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'2-digit', timeZone:tz});
-    const fmtFull   = new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit', timeZone:tz});
-    const timeFormatter = (time)=>{
-      const ts = (typeof time==='object' && time.timestamp) ? time.timestamp : time;
-      return fmtFull.format(new Date(ts*1000));
-    };
-    const tickMarkFormatter = (time, tickType)=>{
-      const ts = (typeof time==='object' && time.timestamp) ? time.timestamp : time;
-      if (tickType===0 || tickType===1) return fmtDay.format(new Date(ts*1000));
-      return fmtTime.format(new Date(ts*1000));
-    };
-    return { timeFormatter, tickMarkFormatter };
+  return { dir: dir[n-1], atr: atr[n-1], line: st };
+}
+function K(kernel,x,bw){ const u=x/bw; return Math.exp(-0.5*u*u)/Math.sqrt(2*Math.PI); }
+function mkrSmooth(arr,bw=14,dev=2){
+  const n=arr.length; const mean=new Array(n), up=new Array(n), dn=new Array(n);
+  for(let i=0;i<n;i++){
+    let wsum=0,vsum=0,vsq=0; const left=Math.max(0,i-bw+1);
+    for(let j=left;j<=i;j++){ const w=K('Gaussian', i-j, bw/3); wsum+=w; vsum+=arr[j]*w; vsq+=arr[j]*arr[j]*w; }
+    const mu=vsum/wsum; const sd=Math.sqrt(Math.max(0,(vsq/wsum)-mu*mu));
+    mean[i]=mu; up[i]=mu+dev*sd; dn[i]=mu-dev*sd;
   }
+  const slope = (n>1 && Number.isFinite(mean[n-1]) && Number.isFinite(mean[n-2])) ? (mean[n-1]-mean[n-2]) : 0;
+  return { mean, up, dn, slope, delta: slope };
+}
 
-  function mkChart(containerId){
-    const { timeFormatter, tickMarkFormatter } = makeTimeFormatters(tzSelValue);
-    const el = $(containerId);
-    const chart = LightweightCharts.createChart(el,{
-      layout:{ background:{ color:'#0e1627' }, textColor:'#cbd5e1' },
-      grid:{ vertLines:{ color:'#1f2a40'}, horzLines:{ color:'#1f2a40'} },
-      rightPriceScale:{ borderColor:'#1f2a40' },
-      timeScale:{ borderColor:'#1f2a40', timeVisible:true, secondsVisible:false, tickMarkFormatter },
-      crosshair:{ mode:LightweightCharts.CrosshairMode.Normal },
-      handleScroll:{ mouseWheel:true, pressedMouseMove:true },
-      handleScale:{ axisPressedMouseMove:true, mouseWheel:true, pinch:true },
-      localization:{ locale:'pt-BR', timeFormatter }
-    });
-    const candle = chart.addCandlestickSeries({
-      upColor:'#16a34a', downColor:'#ef4444', borderVisible:false,
-      wickUpColor:'#16a34a', wickDownColor:'#ef4444'
-    });
-    chart.timeScale().applyOptions({ rightOffset: 5, barSpacing: 3 });
-
-    const ro = new ResizeObserver(()=>{
-      const r = el.getBoundingClientRect();
-      chart.resize(Math.floor(r.width), Math.floor(r.height));
-    });
-    ro.observe(el);
-
-    return { chart, candle };
-  }
-
-  const L = mkChart('chartL');
-  const R = mkChart('chartR');
-
-  function reapplyTimezone(chart){
-    const { timeFormatter, tickMarkFormatter } = makeTimeFormatters(tzSelValue);
-    chart.applyOptions({ localization:{ locale:'pt-BR', timeFormatter }, timeScale:{ tickMarkFormatter } });
-  }
-
-  async function fetchKlines(symbol, interval, limit=360){
-    const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
-    const arr = await fetch(url).then(r=>r.json());
-    if(!Array.isArray(arr) || !arr.length) return [];
-    return arr.map(k=>({ time: Math.floor(k[0]/1000), open:+k[1], high:+k[2], low:+k[3], close:+k[4] }));
-  }
-  async function dayStats(symbol){
-    try{
-      const j = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`).then(r=>r.json());
-      const pct = j && j.priceChangePercent!=null ? +j.priceChangePercent : null;
-      return { pct };
-    }catch{ return { pct:null }; }
-  }
-
-  // ST/MKR
-  function rma(vals,len){ const out=[]; let p=null,a=1/len;
-    for(let i=0;i<vals.length;i++){ const v=vals[i]; p = (p==null)? v : (p + a*(v-p)); out.push(p); }
-    return out;
-  }
-  function trueRange(h,l,cPrev){ return Math.max(h-l, Math.abs(h-cPrev), Math.abs(l-cPrev)); }
-  function calcSuperTrend(ohlc,len=10,mul=3){
-    const n=ohlc.length; if(!n) return {dir:0, atr:0, line:[]};
-    const tr=[]; for(let i=0;i<n;i++){ const cp=i>0? ohlc[i-1].close : ohlc[i].close; tr.push(trueRange(ohlc[i].high, ohlc[i].low, cp)); }
-    const atr=rma(tr,len);
-    const st=new Array(n).fill(null), dir=new Array(n).fill(0);
-    for(let i=0;i<n;i++){
-      const o=ohlc[i], mid=(o.high+o.low)/2, ub=mid+mul*atr[i], lb=mid-mul*atr[i];
-      if(i===0){ st[i]=ub; dir[i]=-1; continue; }
-      const prevSt=st[i-1], prevDir=dir[i-1];
-      if(prevDir===-1){ const newUb=Math.min(ub,prevSt); st[i]=(o.close>newUb)?lb:newUb; dir[i]=(o.close>newUb)?+1:-1; }
-      else { const newLb=Math.max(lb,prevSt); st[i]=(o.close<newLb)?ub:newLb; dir[i]=(o.close<newLb)?-1:+1; }
-    }
-    return { dir: dir[n-1], atr: atr[n-1], line: st };
-  }
-  function mkrSmooth(arr,bw=14,dev=2){
-    const n=arr.length; const mean=new Array(n), up=new Array(n), dn=new Array(n);
-    const K=(x,bw)=>{ const u=x/(bw/3); return Math.exp(-0.5*u*u)/Math.sqrt(2*Math.PI); };
-    for(let i=0;i<n;i++){
-      let wsum=0,vsum=0,vsq=0; const left=Math.max(0,i-bw+1);
-      for(let j=left;j<=i;j++){ const w=K(i-j,bw); wsum+=w; vsum+=arr[j]*w; vsq+=arr[j]*arr[j]*w; }
-      const mu=vsum/wsum; const sd=Math.sqrt(Math.max(0,(vsq/wsum)-mu*mu));
-      mean[i]=mu; up[i]=mu+dev*sd; dn[i]=mu-dev*sd;
-    }
-    const slope = (n>1 && Number.isFinite(mean[n-1]) && Number.isFinite(mean[n-2])) ? (mean[n-1]-mean[n-2]) : 0;
-    return { mean, up, dn, slope, delta: slope };
-  }
-
-  function setBadge(el, text, cls){ el.className='badge '+cls; el.textContent=text; }
-
-  async function updatePairHeader(side, symbol, tf){
-    const el = side==='L'? $('pairTitleL') : $('pairTitleR');
-    try{
-      const [px, day] = await Promise.all([
-        fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`).then(r=>r.json()),
-        dayStats(symbol)
-      ]);
-      const price = +px.price;
-      const pct = day.pct;
-      const pctTxt = (pct==null? '—' : (pct>0? '+'+pct.toFixed(2): pct.toFixed(2))+'%');
-      const pCls = pctClass(pct);
-      const quote = symbol.endsWith('USDT')?'USDT':'BRL';
-      const pairLabel = `${symbol.slice(0,-(quote==='USDT'?4:3))}/${quote}`;
-      el.innerHTML = `
-        ${pairLabel}
-        <span class="sub">(${tf})</span>
-        <span class="badge">${quote==='USDT'? fmtNum(price,2)+' USDT' : price.toLocaleString('pt-BR')+' BRL'}</span>
-        <span class="badge ${pCls}" style="margin-left:6px">${pctTxt}</span>
-      `;
-      (side==='L'? $('pctBadgeL'): $('pctBadgeR')).className='badge '+pCls;
-      (side==='L'? $('pctBadgeL'): $('pctBadgeR')).textContent='24h: '+pctTxt;
-    }catch{
-      el.textContent = symbol + ` (${tf})`;
-    }
-  }
-
-  function decideLocalAndBadges(side, data){
-    const lockEl = side==='L' ? $('lockL') : $('lockR');
-    const trendIds = side==='L' ? {t:'tendL', r:'recL', st:'stBadgeL', m:'mkrBadgeL', a:'atrBadgeL'} :
-                                  {t:'tendR', r:'recR', st:'stBadgeR', m:'mkrBadgeR', a:'atrBadgeR'};
-    // bloqueia se não tiver permissão de ST/MKR
-    const canTech = perms.features.st || perms.features.mkr;
-    lockEl.classList.toggle('visible', !canTech);
-
-    if(!data.length){
-      ['t','r','st','m','a'].forEach(k=> setBadge($(trendIds[k]), '—',''));
-      return {tend:'Mista', rec:'Aguardar'};
-    }
-    const st = calcSuperTrend(data, 10, 3);
-    const closes = data.map(d=>d.close);
-    const mkr = mkrSmooth(closes, 14, 2);
-
-    const dirST = st.dir;  const atr = st.atr; const slope = mkr.slope;
-    const stText = dirST>0? 'ST: Alta' : (dirST<0? 'ST: Baixa' : 'ST: Neutra');
-    const stCls  = dirST>0? 'b-green' : (dirST<0? 'b-red' : 'b-yellow');
-    const mkrText= (slope>0? 'MKR: ↑' : (slope<0? 'MKR: ↓' : 'MKR: →')) + `  Δ${fmtNum(mkr.delta,2)}`;
-    const mkrCls = slope>0? 'b-green' : (slope<0? 'b-red' : 'b-yellow');
-
-    const sameBear = (dirST<0 && slope<0);
-    const sameBull = (dirST>0 && slope>0);
-    const tendencia = sameBull? 'Alta' : (sameBear? 'Baixa' : 'Mista');
-    const tendCls   = sameBull? 'b-green' : (sameBear? 'b-red' : 'b-yellow');
-    let rec = 'Aguardar', recCls='b-blue';
-    if(sameBull){ rec='Comprar (confluência)'; recCls='b-green'; }
-    else if(sameBear){ rec='Vender / reduzir'; recCls='b-red'; }
-
-    setBadge($(trendIds.t), `Tendência: ${tendencia}`, tendCls);
-    setBadge($(trendIds.r),  `Recomendação: ${rec}`,  recCls);
-    setBadge($(trendIds.st), stText, stCls);
-    setBadge($(trendIds.m),  mkrText, mkrCls);
-    setBadge($(trendIds.a),  `ATR: ${fmtNum(atr,2)}`, 'b-blue');
-
-    return {tend:tendencia, rec};
-  }
-
-  function setDataPreserveView(series, chart, data){
-    const ts = chart.timeScale();
-    const atRightEdge = Math.abs(ts.scrollPosition()) < 1e-2;
-    const vr = ts.getVisibleLogicalRange();
-    series.setData(data);
-    if(!atRightEdge && vr){ ts.setVisibleLogicalRange(vr); } else { ts.scrollToRealTime(); }
-  }
-
-  function getIaConfig(){
-    return { url: $('iaUrl').value.trim(), key: $('iaKey').value.trim(), auto: $('iaAuto').checked };
-  }
-  async function callIaWebhook(payload){
-    const {url, key} = getIaConfig();
-    if(!url) throw new Error('IA URL vazia');
-    const headers = {'Content-Type':'application/json'};
-    if(key) headers['Authorization'] = key;
-    const res = await fetch(url, {method:'POST', headers, body: JSON.stringify(payload)});
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    return await res.json();
-  }
-  function applyIaAdvice(side, obj){
-    const el = side==='L' ? $('iaBadgeL') : $('iaBadgeR');
-    const txt = obj && obj.advice ? obj.advice : '—';
-    const cls = /compr/i.test(txt) ? 'b-green' : (/vend/i.test(txt) ? 'b-red' : 'b-yellow');
-    el.className = 'badge '+cls;
-    el.textContent = 'IA: '+txt;
-  }
-
-  async function loadSide(side){
-    const isL = side==='L';
-    const coin  = (isL? $('coinL').value : $('coinR').value);
-    const quote = (isL? $('quoteL').value : $('quoteR').value);
-    const tfLbl = (isL? $('tfL').value   : $('tfR').value);
-    const len   = (isL? +$('lenL').value : +$('lenR').value);
-    const symbol= symbolOf(coin,quote);
-    const intv  = tfMap[tfLbl];
-
-    const data = await fetchKlines(symbol, intv, len);
-    if(isL) setDataPreserveView(L.candle, L.chart, data);
-    else    setDataPreserveView(R.candle, R.chart, data);
-
-    await updatePairHeader(side, symbol, tfLbl);
-    const local = decideLocalAndBadges(side, data);
-
-    // IA só se permitido e opção marcada
-    if(perms.features.ia){
-      const iaCfg = getIaConfig();
-      if(iaCfg.auto && data.length){
-        try{
-          const resp = await callIaWebhook({ symbol, tf: tfLbl, tz: tzSelValue, ohlc: data.slice(-120), local, uid: user?.uid||null });
-          applyIaAdvice(side, resp);
-        }catch(err){
-          console.warn('[IA] falhou, fallback:', err);
-          applyIaAdvice(side, {advice: local.rec});
-        }
-      }else{
-        applyIaAdvice(side, {advice: local.rec});
-      }
-    }else{
-      applyIaAdvice(side, {advice:'—'});
-    }
-
-    // aplica restrições de seleção conforme permissões
-    applySelectGuards();
-  }
-
-  async function refreshAll(){
-    await fetchTopQuotes();
-    await Promise.all([loadSide('L'), loadSide('R')]);
-  }
-
-  // ====== Guards de UI conforme permissões ======
-  function applySelectGuards(){
-    // PARES
-    const allow = new Set((perms.pairs||[]).map(s=>s.toUpperCase()));
-    ['coinL','coinR'].forEach(id=>{
-      const sel=$(id);
-      [...sel.options].forEach(op=>{
-        op.disabled = !allow.has(op.value.toUpperCase());
-      });
-      if(sel.options[sel.selectedIndex]?.disabled){
-        // pega a primeira permitida
-        const idx = [...sel.options].findIndex(o=>!o.disabled);
-        if(idx>=0) sel.selectedIndex=idx;
-      }
-    });
-    // TFS
-    const allowTf = new Set((perms.tfs||[]).map(s=>s.toLowerCase()));
-    const mapBack = { '1M':'1m','3M':'3m','5M':'5m','15M':'15m','30M':'30m','1H':'1h','1D':'1d','1MO':'1mo' };
-    ['tfL','tfR'].forEach(id=>{
-      const sel=$(id);
-      [...sel.options].forEach(op=>{
-        op.disabled = !allowTf.has(mapBack[op.value].toLowerCase());
-      });
-      if(sel.options[sel.selectedIndex]?.disabled){
-        const idx = [...sel.options].findIndex(o=>!o.disabled);
-        if(idx>=0) sel.selectedIndex=idx;
-      }
-    });
-
-    // Esconde badges e tech se sem permissão
-    const canTech = perms.features.st || perms.features.mkr;
-    $('trendRowL').classList.toggle('disabled', !canTech);
-    $('trendRowR').classList.toggle('disabled', !canTech);
-  }
-
-  // ====== Botões topo ======
-  $('btnRefresh').onclick = refreshAll;
-  $('btnIaTest').onclick = async ()=>{
-    try{
-      const r = await callIaWebhook({ping:true, now: Date.now(), note:'teste-conexao'});
-      alert('IA OK: '+ (r && (r.message||r.advice||'sucesso')));
-    }catch(e){
-      alert('Falha ao chamar IA: '+e.message);
-    }
-  };
-  $('autoSel').onchange = ()=> setAuto(+$('autoSel').value);
-
-  // ====== Controles dos gráficos ======
-  ['coinL','quoteL','tfL','lenL'].forEach(id=> $(id).addEventListener('change', ()=> loadSide('L')));
-  ['coinR','quoteR','tfR','lenR'].forEach(id=> $(id).addEventListener('change', ()=> loadSide('R')));
-
-  // ====== Auto refresh ======
-  let timer=null;
-  function setAuto(ms){ if(timer) clearInterval(timer); if(ms>0) timer = setInterval(refreshAll, ms); }
-
-  // ====== Painéis flutuantes ======
-  const authPanel=$('authPanel'), adminPanel=$('adminPanel');
-  $('btnAuthPanel').onclick = ()=> authPanel.classList.toggle('visible');
-  $('btnAdminPanel').onclick= ()=> adminPanel.classList.toggle('visible');
-
-  // ====== Auth ======
-  async function loadProfileOrInvite(u){
-    profile = null; isAdmin=false;
-    if(!u) return;
-
-    // tenta users/{uid}
-    const pRef = doc(db,'users',u.uid);
-    const snap = await getDoc(pRef);
-    if(snap.exists()){
-      profile = snap.data();
-    }else{
-      // tenta convite por e-mail
-      const email = (u.email||'').toLowerCase();
-      if(email){
-        const invRef = doc(db,'invites',email);
-        const invSnap = await getDoc(invRef);
-        if(invSnap.exists()){
-          const inv = invSnap.data();
-          // aplica convite em users/{uid}
-          await setDoc(pRef,{
-            email, role: inv.role || 'user',
-            allowed: {
-              features: {
-                st: !!(inv.features?.st ?? true),
-                mkr:!!(inv.features?.mkr?? true),
-                ia: !!(inv.features?.ia ?? true),
-              },
-              pairs: Array.isArray(inv.pairs)? inv.pairs : ["BTC","ETH","BNB","SOL","ADA"],
-              tfs:   Array.isArray(inv.tfs)? inv.tfs   : ["1m","3m","5m","15m","30m","1h","1d","1mo"]
-            }
-          }, {merge:true});
-          await deleteDoc(invRef);
-          profile = (await getDoc(pRef)).data();
-        }
-      }
-    }
-
-    // Admin: se role=admin OU uid=BOOTSTRAP_ADMIN_UID
-    isAdmin = (profile?.role === 'admin') || (u.uid === BOOTSTRAP_ADMIN_UID);
-    $('btnAdminPanel').style.display = isAdmin ? 'inline-block' : 'none';
-
-    // Permissões efetivas
-    if(profile?.allowed){
-      perms.features = {
-        st: !!(profile.allowed.features?.st),
-        mkr:!!(profile.allowed.features?.mkr),
-        ia: !!(profile.allowed.features?.ia),
-      };
-      perms.pairs = Array.isArray(profile.allowed.pairs) ? profile.allowed.pairs : perms.pairs;
-      perms.tfs   = Array.isArray(profile.allowed.tfs)   ? profile.allowed.tfs   : perms.tfs;
-    }else{
-      perms.features = {st:false,mkr:false,ia:false};
-    }
-    applySelectGuards();
-  }
-
-  onAuthStateChanged(auth, async (u)=>{
-    user = u;
-    if(u){
-      $('authInfo').textContent = `Logado como: ${u.email} (uid: ${u.uid})`;
-      await loadProfileOrInvite(u);
-      await refreshAll();
-    }else{
-      $('authInfo').textContent = 'Não logado.';
-      isAdmin=false; profile=null;
-      perms = {features:{st:false,mkr:false,ia:false},
-               pairs:["BTC","ETH","BNB","SOL","ADA","XRP","DOGE","DOT","MATIC","AVAX"],
-               tfs:["1m","3m","5m","15m","30m","1h","1d","1mo"]};
-      applySelectGuards();
-      await refreshAll();
-    }
+// ===== Charts =====
+function makeFormatters(tz){
+  const fmtTime = new Intl.DateTimeFormat('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:tz});
+  const fmtDay  = new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'2-digit',timeZone:tz});
+  const fmtFull = new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:tz});
+  const timeFormatter = (t)=> fmtFull.format(new Date((t.timestamp||t)*1000));
+  const tickMarkFormatter = (t, typ)=> (typ<=1? fmtDay : fmtTime).format(new Date((t.timestamp||t)*1000));
+  return {timeFormatter, tickMarkFormatter};
+}
+function mkChart(containerId){
+  const el = $(containerId);
+  const {timeFormatter, tickMarkFormatter} = makeFormatters(tz);
+  const chart = LightweightCharts.createChart(el,{
+    layout:{ background:{ color:'#0e1627' }, textColor:'#cbd5e1' },
+    grid:{ vertLines:{ color:'#1f2a40'}, horzLines:{ color:'#1f2a40'} },
+    rightPriceScale:{ borderColor:'#1f2a40' },
+    timeScale:{ borderColor:'#1f2a40', timeVisible:true, secondsVisible:false, tickMarkFormatter },
+    crosshair:{ mode:LightweightCharts.CrosshairMode.Normal },
+    handleScroll:{ mouseWheel:true, pressedMouseMove:true },
+    handleScale:{ axisPressedMouseMove:true, mouseWheel:true, pinch:true },
+    localization:{ locale:'pt-BR', timeFormatter }
   });
+  const candle = chart.addCandlestickSeries({
+    upColor:'#16a34a', downColor:'#ef4444', borderVisible:false,
+    wickUpColor:'#16a34a', wickDownColor:'#ef4444'
+  });
+  chart.timeScale().applyOptions({ rightOffset:5, barSpacing:3 });
+  const ro = new ResizeObserver(()=>{ const r = el.getBoundingClientRect(); chart.resize(r.width, r.height); });
+  ro.observe(el);
+  return { chart, candle };
+}
+const L = mkChart('chartL');
+const R = mkChart('chartR');
 
-  $('btnLogin').onclick = async ()=>{
-    try{
-      const u = await signInWithEmailAndPassword(auth, $('authEmail').value.trim(), $('authPass').value);
-      authPanel.classList.remove('visible');
-    }catch(e){ alert('Falha login: '+e.message); }
-  };
-  $('btnRegister').onclick = async ()=>{
-    try{
-      const u = await createUserWithEmailAndPassword(auth, $('authEmail').value.trim(), $('authPass').value);
-      alert('Registrado! Faça login se necessário.');
-    }catch(e){ alert('Falha registro: '+e.message); }
-  };
-  $('btnLogout').onclick = async ()=>{ await signOut(auth); };
+function setDataPreserve(series, chart, data){
+  const ts = chart.timeScale();
+  const atRight = Math.abs(ts.scrollPosition()) < 1e-2;
+  const vr = ts.getVisibleLogicalRange();
+  series.setData(data);
+  if(!atRight && vr) ts.setVisibleLogicalRange(vr); else ts.scrollToRealTime();
+}
 
-  // ====== Admin (convites) ======
-  $('btnCreateInvite').onclick = async ()=>{
-    if(!isAdmin){ alert('Somente admin.'); return; }
+function setBadge(el, text, cls){ el.className = 'badge '+cls; el.textContent=text; }
+function pctClass(p){ return p>0?'b-green':(p<0?'b-red':'b-yellow'); }
+
+// ===== IA =====
+function getIaCfg(){
+  return { url: $('iaUrl').value.trim(), key: $('iaKey').value.trim(), auto: $('iaAuto').checked && FEATURES.ia };
+}
+async function callIA(payload){
+  const {url,key} = getIaCfg(); if(!url) throw new Error('sem IA URL');
+  const headers = {'Content-Type':'application/json'}; if(key) headers.Authorization = key;
+  const r = await fetch(url,{method:'POST',headers,body:JSON.stringify(payload)});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return await r.json();
+}
+function applyIaAdvice(side, obj){
+  const el = side==='L'? $('iaBadgeL') : $('iaBadgeR');
+  const txt = obj && obj.advice ? obj.advice : '—';
+  const cls = /compr/i.test(txt) ? 'b-green' : (/vend/i.test(txt) ? 'b-red' : 'b-yellow');
+  setBadge(el,'IA: '+txt,cls);
+}
+
+// ===== Cabeçalhos, lógica local e carga =====
+async function updateHeader(side,symbol,tfLbl){
+  const el = side==='L'? $('pairTitleL') : $('pairTitleR');
+  try{
+    const [px, day] = await Promise.all([
+      fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`).then(r=>r.json()),
+      dayStats(symbol)
+    ]);
+    const price = +px.price, quote = symbol.endsWith('USDT')?'USDT':'BRL';
+    const pct = day.pct, pctTxt = (pct==null?'—':(pct>0?'+':'')+pct.toFixed(2)+'%');
+    const pCls = pctClass(pct);
+    el.innerHTML = `
+      ${symbol.replace(quote,'')}/${quote}
+      <span class="sub">(${tfLbl})</span>
+      <span class="badge">${quote==='USDT'? fmtNum(price,2)+' USDT' : price.toLocaleString('pt-BR')+' BRL'}</span>
+      <span class="badge ${pCls}" style="margin-left:6px">${pctTxt}</span>`;
+    const pctBadge = side==='L'?$('pctBadgeL'):$('pctBadgeR'); setBadge(pctBadge,'24h: '+pctTxt,pCls);
+  }catch{ el.textContent = symbol+' ('+tfLbl+')'; }
+}
+function decideLocal(side,data){
+  if(!data.length){
+    (side==='L'?['tendL','recL','stBadgeL','mkrBadgeL','atrBadgeL']:['tendR','recR','stBadgeR','mkrBadgeR','atrBadgeR']).forEach(id=> setBadge($(id),'—',''));
+    applyIaAdvice(side,{advice:'—'}); return {rec:'Aguardar'};
+  }
+  const st  = FEATURES.st  ? calcSuperTrend(data,10,3) : {dir:0,atr:0};
+  const mkr = FEATURES.mkr ? mkrSmooth(data.map(d=>d.close),14,2) : {slope:0,delta:0};
+  const dir=st.dir, atr=st.atr, slope=mkr.slope;
+  const stText = dir>0?'ST: Alta':(dir<0?'ST: Baixa':'ST: Neutra');
+  const stCls  = dir>0?'b-green':(dir<0?'b-red':'b-yellow');
+  const mkrText=(slope>0?'MKR: ↑':(slope<0?'MKR: ↓':'MKR: →'))+'  Δ'+fmtNum(mkr.delta||0,2);
+  const mkrCls = slope>0?'b-green':(slope<0?'b-red':'b-yellow');
+
+  const sameBear = (dir<0 && slope<0);
+  const sameBull = (dir>0 && slope>0);
+  const tendencia = sameBull?'Alta':(sameBear?'Baixa':'Mista');
+  const tendCls   = sameBull?'b-green':(sameBear?'b-red':'b-yellow');
+  let rec='Aguardar', recCls='b-blue';
+  if(sameBull){rec='Comprar (confluência)'; recCls='b-green';}
+  else if(sameBear){rec='Vender / reduzir'; recCls='b-red';}
+
+  if(side==='L'){
+    setBadge($('tendL'),'Tendência: '+tendencia,tendCls);
+    setBadge($('recL'),rec,recCls);
+    setBadge($('stBadgeL'),stText,stCls);
+    setBadge($('mkrBadgeL'),mkrText,mkrCls);
+    setBadge($('atrBadgeL'),'ATR: '+fmtNum(atr||0,2),'b-blue');
+  }else{
+    setBadge($('tendR'),'Tendência: '+tendencia,tendCls);
+    setBadge($('recR'),rec,recCls);
+    setBadge($('stBadgeR'),stText,stCls);
+    setBadge($('mkrBadgeR'),mkrText,mkrCls);
+    setBadge($('atrBadgeR'),'ATR: '+fmtNum(atr||0,2),'b-blue');
+  }
+  return {rec};
+}
+
+async function loadSide(side){
+  const coin  = (side==='L'? $('coinL'): $('coinR')).value;
+  const quote = (side==='L'? $('quoteL'): $('quoteR')).value;
+  const tfLbl = (side==='L'? $('tfL'): $('tfR')).value;
+  const len   = +(side==='L'? $('lenL'): $('lenR')).value;
+  const symbol = (coin+quote).toUpperCase();
+  const intv   = tfMap[tfLbl];
+
+  const data = await fetchKlines(symbol,intv,len);
+  if(side==='L') setDataPreserve(L.candle,L.chart,data); else setDataPreserve(R.candle,R.chart,data);
+  updateHeader(side,symbol,tfLbl);
+
+  const local = decideLocal(side,data);
+  const iaCfg = getIaCfg();
+  if(iaCfg.auto && data.length){
+    try{ const r = await callIA({symbol,tf:tfLbl,tz,ohlc:data.slice(-120),local}); applyIaAdvice(side,r); }
+    catch(e){ console.warn('IA falhou',e); applyIaAdvice(side,local); }
+  } else applyIaAdvice(side,local);
+}
+
+async function refreshAll(){ await fetchTopQuotes(); await Promise.all([loadSide('L'),loadSide('R')]); }
+
+// ===== Controles =====
+['coinL','quoteL','tfL','lenL'].forEach(id=> $(id).addEventListener('change',()=>loadSide('L')));
+['coinR','quoteR','tfR','lenR'].forEach(id=> $(id).addEventListener('change',()=>loadSide('R')));
+$('btnIaTest').onclick = async ()=>{
+  try{ const r=await callIA({ping:true,ts:Date.now()}); alert('IA OK: '+(r.message||r.advice||'sucesso'));}catch(e){ alert('Falha IA: '+e.message); }
+};
+$('tzSel').onchange = ()=>{ tz=$('tzSel').value; refreshAll(); };
+let timer=null; const setAuto=ms=>{ if(timer)clearInterval(timer); if(ms>0) timer=setInterval(refreshAll,ms);};
+$('autoSel').onchange = ()=> setAuto(+$('autoSel').value);
+
+// ===== Auth & Firestore gates =====
+const { auth, db, onAuthStateChanged, signInWithEmailAndPassword, signOut, doc, getDoc, setDoc, updateDoc } = window._fb;
+
+function fillSelect(el, arr, selVal){
+  el.innerHTML=''; arr.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; if(v===selVal) o.selected=true; el.appendChild(o); });
+}
+
+async function applyPermissions(uid){
+  const ref = doc(db,'users',uid);
+  const snap= await getDoc(ref);
+  if(!snap.exists()){
+    $('gates').className='chip danger';
+    $('gates').textContent='Acesso negado: usuário sem permissão cadastrada.';
+    $('panel').classList.add('hide');
+    return;
+  }
+  userDoc = snap.data(); // { email, role, allowed: {features, pairs, tfs} }
+  const isAdmin = userDoc.role==='admin';
+  $('adminBox').classList.toggle('hide', !isAdmin);
+
+  // features, pares e tfs do usuário
+  FEATURES = Object.assign({st:false,mkr:false,ia:false}, (userDoc.allowed?.features||{}));
+  ALLOWED_PAIRS = (userDoc.allowed?.pairs && userDoc.allowed.pairs.length)? userDoc.allowed.pairs : defaultPairs;
+  ALLOWED_TFS   = (userDoc.allowed?.tfs && userDoc.allowed.tfs.length)? userDoc.allowed.tfs : ["3m","5m","15m","30m","1h","1d","1mo"];
+
+  // Preenche selects conforme permissões
+  fillSelect($('coinL'), ALLOWED_PAIRS, 'BTC');
+  fillSelect($('coinR'), ALLOWED_PAIRS, 'BTC');
+  fillSelect($('tfL'),   ALLOWED_TFS,   '3m');
+  fillSelect($('tfR'),   ALLOWED_TFS,   '3m');
+
+  $('gates').className='chip success';
+  $('gates').textContent='Acesso concedido.';
+  $('panel').classList.remove('hide');
+
+  await refreshAll();
+  setAuto(+$('autoSel').value);
+}
+
+// Login modal
+$('btnLogin').onclick = ()=> $('loginModal').classList.remove('hide');
+$('loginCancel').onclick = ()=> $('loginModal').classList.add('hide');
+$('loginGo').onclick = async ()=>{
+  $('loginMsg').textContent='Entrando…';
+  try{
+    const email=$('loginEmail').value.trim(), pass=$('loginPass').value;
+    const cred = await signInWithEmailAndPassword(auth,email,pass);
+    $('loginMsg').textContent='OK!';
+    $('loginModal').classList.add('hide');
+  }catch(e){
+    $('loginMsg').textContent='Erro: '+e.message;
+  }
+};
+$('btnLogout').onclick = ()=> signOut(auth);
+
+// Admin ações
+$('btnInvite').onclick = async ()=>{
+  try{
     const email = $('invEmail').value.trim().toLowerCase();
-    if(!email){ alert('Informe e-mail'); return; }
-    const role = $('invRole').value;
-    const features = { st: $('invST').checked, mkr: $('invMKR').checked, ia: $('invIA').checked };
-    const pairs = $('invPairs').value.split(',').map(s=>s.trim()).filter(Boolean);
-    const tfs   = $('invTFs').value.split(',').map(s=>s.trim()).filter(Boolean);
-    const ref = doc(db,'invites',email);
-    await setDoc(ref,{ role, features, pairs, tfs }, {merge:true});
-    $('adminInfo').textContent = `Convite salvo para ${email}`;
-  };
-  $('btnListInvites').onclick = async ()=>{
-    if(!isAdmin){ alert('Somente admin.'); return; }
-    const qs = await getDocs(collection(db,'invites'));
-    const arr = [];
-    qs.forEach(d=> arr.push({id:d.id, ...d.data()}));
-    $('invList').innerHTML = '<b>Convites:</b><br>'+ arr.map(o=>(
-      `${o.id} — role:${o.role} — ST:${o.features?.st?'on':'off'} MKR:${o.features?.mkr?'on':'off'} IA:${o.features?.ia?'on':'off'}`
-    )).join('<br>');
-  };
+    const plan  = $('invPlan').value;
+    if(!email) return alert('Informe o e-mail');
+    await setDoc(doc(db,'invites',email),{
+      email, plan, at: Date.now()
+    }, {merge:true});
+    alert('Convite registrado p/ '+email);
+  }catch(e){ alert('Falha convite: '+e.message); }
+};
+$('btnGrantPerm').onclick = async ()=>{
+  try{
+    const uid = $('permUid').value.trim();
+    if(!uid) return alert('Cole o UID');
+    await setDoc(doc(db,'users',uid),{
+      role:'user',
+      allowed:{
+        features:{st:true,mkr:true,ia:true},
+        pairs: defaultPairs,
+        tfs: ["1m","3m","5m","15m","30m","1h","1d","1mo"]
+      }
+    }, {merge:true});
+    alert('Permissões aplicadas ao UID '+uid);
+  }catch(e){ alert('Falha ao aplicar: '+e.message); }
+};
 
-  // ====== Start ======
-  (async ()=>{
-    // presets iniciais
-    $('coinL').value='BTC'; $('quoteL').value='BRL';  $('tfL').value='3M'; $('lenL').value='360';
-    $('coinR').value='BTC'; $('quoteR').value='USDT'; $('tfR').value='3M'; $('lenR').value='360';
-    await refreshAll();
-    setAuto(+$('autoSel').value); // default 5s
-  })();
+// Auth listener
+onAuthStateChanged(auth, async (user)=>{
+  if(user){
+    $('authStatus').innerHTML='Sessão: <b>'+ (user.email||user.uid) +'</b>';
+    $('btnLogin').classList.add('hide');
+    $('btnLogout').classList.remove('hide');
+    $('gates').className='chip'; $('gates').textContent='Validando permissões…';
+    await applyPermissions(user.uid);
+  }else{
+    $('authStatus').innerHTML='Sessão: <b>desconectado</b>';
+    $('btnLogin').classList.remove('hide');
+    $('btnLogout').classList.add('hide');
+    $('panel').classList.add('hide');
+    $('gates').className='chip danger';
+    $('gates').textContent='Faça login para ver o painel.';
+  }
+});
+
+// Start
+(async ()=>{
+  // Defaults
+  $('iaAuto').checked=false;
+  await fetchTopQuotes();
+})();
 </script>
 </body>
 </html>
