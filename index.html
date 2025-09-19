@@ -3,499 +3,172 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Painel Cripto PRO — Candles (2 painéis) + Tendência (ST/MKR) + IA</title>
+<title>Admin — Assinantes (Painel Cripto PRO)</title>
 <style>
-  :root{
-    --bg:#0b1220;--panel:#0e1627;--soft:#111b2f;--muted:#334155;--text:#e5e7eb;
-    --ok:#22c55e;--warn:#f59e0b;--bad:#ef4444;--line:#22304a;--info:#60a5fa
-  }
+  :root{ --bg:#0b1220;--panel:#0e1627;--soft:#111b2f;--text:#e5e7eb;--line:#1f2a40;--ok:#22c55e;--bad:#ef4444 }
   html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial}
-  .wrap{padding:16px;max-width:1680px;margin:auto}
-  h1{margin:0 0 10px 0;font-size:18px;font-weight:700}
-  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-  .topbar{background:var(--panel);border:1px solid #1f2a40;border-radius:12px;padding:10px}
-  .chip{background:var(--soft);border:1px solid #243149;border-radius:10px;padding:6px 10px;display:inline-flex;gap:8px;align-items:center;font-size:14px}
-  .muted{color:#9aa8bf}
-  select,input,button{background:#0b1220;color:var(--text);border:1px solid #2c3a52;border-radius:10px;padding:6px 10px}
-  input{min-width:220px}
+  .wrap{max-width:1100px;margin:auto;padding:16px}
+  h1{margin:0 0 12px 0;font-size:20px}
+  .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:12px}
+  input,select,button{background:#0b1220;color:var(--text);border:1px solid #2c3a52;border-radius:10px;padding:6px 10px}
   button{cursor:pointer} button:hover{filter:brightness(1.12)}
-  .grid{display:grid;gap:16px;grid-template-columns:1fr 1fr;margin-top:12px}
-  .card{background:var(--panel);border:1px solid #1f2a40;border-radius:12px;padding:12px;min-height:460px}
-  .headRow{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-  .title{font-weight:700}
-  .title .sub{font-weight:500;font-size:12px;color:#9aa8bf;margin-left:6px}
-  .badge{display:inline-flex;gap:6px;align-items:center;padding:4px 8px;border-radius:999px;border:1px solid #2b3750;font-size:12px;background:#0b1220}
-  .b-green{border-color:#064e3b;color:#bbf7d0;background:#052e1a}
-  .b-red{border-color:#7f1d1d;color:#fecaca;background:#3b0a0a}
-  .b-yellow{border-color:#854d0e;color:#fde68a;background:#3a2a06}
-  .b-blue{border-color:#1d4ed8;color:#dbeafe;background:#0b1e43}
-  .chart{height:540px}
-  .trendRow{display:flex;gap:8px;flex-wrap:wrap}
-  .split{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
-  footer{margin-top:12px;color:#9aa8bf;font-size:12px;text-align:center}
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  th,td{padding:8px 10px;border-bottom:1px solid var(--line);font-size:14px}
+  th{background:#101a2b;text-align:left}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  .pill{padding:3px 8px;border-radius:999px;border:1px solid #2b3750;font-size:12px}
+  .pill-ok{border-color:#064e3b;color:#bbf7d0;background:#052e1a}
+  .pill-bad{border-color:#7f1d1d;color:#fecaca;background:#3b0a0a}
+  .right{margin-left:auto}
+  .muted{color:#9aa8bf}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Painel Cripto PRO — Candles (2 painéis) + Tendência (ST/MKR) + IA</h1>
+  <h1>Admin — Assinantes</h1>
 
-  <!-- Barra topo -->
-  <div class="topbar">
-    <div class="split">
-      <div class="row">
-        <span class="muted">Cotações:</span>
-        <span class="chip">BTC/BRL: <b id="q_btcbrl">—</b></span>
-        <span class="chip">BTC/USDT: <b id="q_btcusdt">—</b></span>
-        <span class="chip">USD/BRL: <b id="q_usdbrl">—</b></span>
-        <span class="muted" id="lastTs">—</span>
-      </div>
-      <div class="row">
-        <label class="chip">Auto:
-          <select id="autoSel">
-            <option value="0">Off</option>
-            <option value="2000">2s</option>
-            <option value="3000">3s</option>
-            <option value="5000" selected>5s</option>
-            <option value="10000">10s</option>
-            <option value="15000">15s</option>
-            <option value="30000">30s</option>
-          </select>
-        </label>
-
-        <label class="chip">IA Webhook
-          <input id="iaUrl" value="https://script.google.com/macros/s/AKfycbyTl7gsql26O_tdMOCqB_CcLCyQ5k8aoI6Aack_VWJsXk5b-PClIUSnAtgyctA6pdlX/exec">
-        </label>
-        <label class="chip">Chave
-          <input id="iaKey" placeholder="(opcional)">
-        </label>
-        <label class="chip"><input type="checkbox" id="iaAuto" checked> IA em cada refresh</label>
-        <button id="btnIaTest">Testar IA</button>
-
-        <label class="chip">Fuso:
-          <select id="tzSel">
-            <option value="America/Sao_Paulo" selected>Brasil (BRT)</option>
-            <option value="UTC">UTC</option>
-            <option value="America/New_York">NY (ET)</option>
-            <option value="Europe/Lisbon">Lisboa</option>
-          </select>
-        </label>
-
-        <button id="btnRefresh">Atualizar agora</button>
-        <small class="muted">Zoom/scroll preservados quando você estiver fora do fim do gráfico.</small>
-      </div>
-    </div>
+  <div class="bar">
+    <span>Chave Admin:</span>
+    <input id="adminKey" placeholder="admin-key" style="min-width:260px">
+    <button id="btnSaveKey">Usar chave</button>
+    <span id="keyStatus" class="muted">—</span>
+    <button id="btnReload" class="right">Recarregar lista</button>
   </div>
 
-  <!-- Painéis -->
-  <div class="grid">
-    <!-- ESQUERDA -->
-    <div class="card" id="cardL">
-      <div class="headRow">
-        <div class="row"><span id="pairTitleL" class="title">—</span></div>
-        <div class="row">
-          <label class="chip">Moeda
-            <select id="coinL"><option>BTC</option><option>ETH</option><option>BNB</option><option>SOL</option><option>ADA</option></select>
-          </label>
-          <label class="chip">Contra
-            <select id="quoteL"><option>BRL</option><option selected>USDT</option></select>
-          </label>
-          <label class="chip">TF
-            <select id="tfL"><option>1M</option><option selected>3M</option><option>5M</option><option>15M</option><option>30M</option><option>1H</option><option>1D</option></select>
-          </label>
-          <label class="chip">Velas
-            <select id="lenL"><option>120</option><option selected>360</option><option>720</option><option>1200</option></select>
-          </label>
-        </div>
-      </div>
-      <div id="chartL" class="chart"></div>
-      <div class="row" style="margin-top:10px">
-        <div class="trendRow" id="trendL">
-          <span class="badge b-yellow" id="tendL">Tendência: —</span>
-          <span class="badge b-blue" id="recL">Recomendação: —</span>
-          <span class="badge" id="stBadgeL">ST: —</span>
-          <span class="badge" id="mkrBadgeL">MKR: —</span>
-          <span class="badge" id="atrBadgeL">ATR: —</span>
-          <span class="badge" id="pctBadgeL">24h: —</span>
-          <span class="badge" id="iaBadgeL">IA: —</span>
-        </div>
-      </div>
+  <div class="bar">
+    <div class="row" style="flex:1 1 auto">
+      <input id="email" placeholder="email" style="min-width:220px">
+      <select id="plano">
+        <option>mensal</option><option>anual</option><option>trial</option><option>premium</option>
+      </select>
+      <input id="expira" placeholder="expira_em YYYY-MM-DD" style="min-width:160px">
+      <select id="ativo"><option value="TRUE">ativo</option><option value="FALSE">inativo</option></select>
+      <select id="role"><option value="user">user</option><option value="admin">admin</option></select>
     </div>
-
-    <!-- DIREITA -->
-    <div class="card" id="cardR">
-      <div class="headRow">
-        <div class="row"><span id="pairTitleR" class="title">—</span></div>
-        <div class="row">
-          <label class="chip">Moeda
-            <select id="coinR"><option selected>BTC</option><option>ETH</option><option>BNB</option><option>SOL</option><option>ADA</option></select>
-          </label>
-          <label class="chip">Contra
-            <select id="quoteR"><option>BRL</option><option selected>USDT</option></select>
-          </label>
-          <label class="chip">TF
-            <select id="tfR"><option>1M</option><option selected>3M</option><option>5M</option><option>15M</option><option>30M</option><option>1H</option><option>1D</option></select>
-          </label>
-          <label class="chip">Velas
-            <select id="lenR"><option>120</option><option selected>360</option><option>720</option><option>1200</option></select>
-          </label>
-        </div>
-      </div>
-      <div id="chartR" class="chart"></div>
-      <div class="row" style="margin-top:10px">
-        <div class="trendRow" id="trendR">
-          <span class="badge b-yellow" id="tendR">Tendência: —</span>
-          <span class="badge b-blue" id="recR">Recomendação: —</span>
-          <span class="badge" id="stBadgeR">ST: —</span>
-          <span class="badge" id="mkrBadgeR">MKR: —</span>
-          <span class="badge" id="atrBadgeR">ATR: —</span>
-          <span class="badge" id="pctBadgeR">24h: —</span>
-          <span class="badge" id="iaBadgeR">IA: —</span>
-        </div>
-      </div>
-    </div>
+    <button id="btnCreate">Criar</button>
+    <button id="btnUpdate">Atualizar</button>
+    <button id="btnDelete">Apagar</button>
   </div>
 
-  <footer>Painel Cripto Pro © 2025 — Desenvolvido por Marcelo. Para toda Honra e Glória do Senhor Jesus!</footer>
+  <table id="tbl">
+    <thead>
+      <tr>
+        <th>Email</th><th>Plano</th><th>Expira</th><th>Ativo</th><th>Role</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <p class="muted" style="margin-top:8px">
+    Dica: clique numa linha para carregar no formulário acima.
+  </p>
 </div>
 
-<!-- Lightweight Charts -->
-<script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
 <script>
-/* ===== Helpers ===== */
-const $ = id => document.getElementById(id);
-const fmtNum = (n, d=2) => Number.isFinite(n)? n.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}) : '—';
-let tzSelValue = 'America/Sao_Paulo';
-const nowTxt = ()=> new Intl.DateTimeFormat('pt-BR',{dateStyle:'short', timeStyle:'medium', timeZone: tzSelValue}).format(new Date());
-const tfMap = { '1M':'1m','3M':'3m','5M':'5m','15M':'15m','30M':'30m','1H':'1h','1D':'1d' };
-const symbolOf = (c,q)=> (c+q).toUpperCase();
+/* ===== CONFIG ===== */
+const ENDPOINT = "https://script.google.com/macros/s/AKfycbzAW06MRS1cAhadH1Zndx0MbB4tm3onKmyeNi8xQXNoURS1Ctn_Zx9HCcsfjQ39LfndWA/exec";
+// coloque a mesma ADMIN_KEY do Apps Script para facilitar teste local;
+// em produção, prefira digitar manualmente e guardar em sessionStorage.
+const DEFAULT_ADMIN_KEY = "";
 
-/* ===== Top quotes ===== */
-async function fetchTopQuotes(){
-  try{
-    const [pU, pB, usdt] = await Promise.all([
-      fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT').then(r=>r.json()),
-      fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCBRL').then(r=>r.json()),
-      fetch('https://api.binance.com/api/v3/ticker/price?symbol=USDTBRL').then(r=>r.json()).catch(()=>({price:null}))
-    ]);
-    $('q_btcusdt').textContent = fmtNum(+pU.price,2)+' USDT';
-    $('q_btcbrl').textContent  = (+pB.price).toLocaleString('pt-BR');
-    $('q_usdbrl').textContent  = Number.isFinite(+usdt.price)? fmtNum(+usdt.price,2) : '—';
-    $('lastTs').textContent    = `Atualizado (${tzSelValue}): ` + nowTxt();
-  }catch(e){
-    $('lastTs').textContent    = `Atualizado (${tzSelValue}): erro`;
-  }
+/* ===== STATE ===== */
+const $ = s=>document.querySelector(s);
+const $$ = s=>document.querySelectorAll(s);
+
+function getAdminKey(){
+  return sessionStorage.getItem('admin_key') || DEFAULT_ADMIN_KEY || $('#adminKey').value.trim();
+}
+function setAdminKey(k){
+  sessionStorage.setItem('admin_key', k);
+  $('#adminKey').value = k;
+  $('#keyStatus').textContent = k ? 'chave carregada' : '—';
 }
 
-/* ===== Dados & Indicadores ===== */
-async function fetchKlines(symbol, interval, limit=360){
-  const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
-  const arr = await fetch(url).then(r=>r.json());
-  if(!Array.isArray(arr) || !arr.length) return [];
-  return arr.map(k=>({ time: Math.floor(k[0]/1000), open:+k[1], high:+k[2], low:+k[3], close:+k[4] }));
-}
-async function dayStats(symbol){
-  try{
-    const j = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`).then(r=>r.json());
-    const pct = j && j.priceChangePercent!=null ? +j.priceChangePercent : null;
-    return { pct };
-  }catch{ return { pct:null }; }
-}
-
-/* === SuperTrend (ATR RMA) === */
-function rma(vals,len){ const out=[]; let p=null,a=1/len;
-  for(let i=0;i<vals.length;i++){ const v=vals[i]; p = (p==null)? v : (p + a*(v-p)); out.push(p); }
-  return out;
-}
-function trueRange(h,l,cPrev){ return Math.max(h-l, Math.abs(h-cPrev), Math.abs(l-cPrev)); }
-function calcSuperTrend(ohlc,len=10,mul=3){
-  const n=ohlc.length; if(!n) return {dir:0, atr:0, line:[]};
-  const tr=[]; for(let i=0;i<n;i++){ const cp=i>0? ohlc[i-1].close : ohlc[i].close; tr.push(trueRange(ohlc[i].high, ohlc[i].low, cp)); }
-  const atr=rma(tr,len);
-  const st=new Array(n).fill(null), dir=new Array(n).fill(0);
-  for(let i=0;i<n;i++){
-    const o=ohlc[i], mid=(o.high+o.low)/2, ub=mid+mul*atr[i], lb=mid-mul*atr[i];
-    if(i===0){ st[i]=ub; dir[i]=-1; continue; }
-    const prevSt=st[i-1], prevDir=dir[i-1];
-    if(prevDir===-1){ const newUb=Math.min(ub,prevSt); st[i]=(o.close>newUb)?lb:newUb; dir[i]=(o.close>newUb)?+1:-1; }
-    else { const newLb=Math.max(lb,prevSt); st[i]=(o.close<newLb)?ub:newLb; dir[i]=(o.close<newLb)?-1:+1; }
-  }
-  return { dir: dir[n-1], atr: atr[n-1], line: st };
-}
-/* === MKR (suavização + envelopes) === */
-function K(kernel,x,bw){ const u=x/bw; return Math.exp(-0.5*u*u)/Math.sqrt(2*Math.PI); }
-function mkrSmooth(arr,bw=14,dev=2){
-  const n=arr.length; const mean=new Array(n), up=new Array(n), dn=new Array(n);
-  for(let i=0;i<n;i++){
-    let wsum=0,vsum=0,vsq=0; const left=Math.max(0,i-bw+1);
-    for(let j=left;j<=i;j++){ const w=K('Gaussian', i-j, bw/3); wsum+=w; vsum+=arr[j]*w; vsq+=arr[j]*arr[j]*w; }
-    const mu=vsum/wsum; const sd=Math.sqrt(Math.max(0,(vsq/wsum)-mu*mu));
-    mean[i]=mu; up[i]=mu+dev*sd; dn[i]=mu-dev*sd;
-  }
-  const slope = (n>1 && Number.isFinite(mean[n-1]) && Number.isFinite(mean[n-2])) ? (mean[n-1]-mean[n-2]) : 0;
-  return { mean, up, dn, slope, delta: slope };
-}
-
-/* ===== Formatadores de tempo por fuso ===== */
-function makeTimeFormatters(tz){
-  const fmtTime   = new Intl.DateTimeFormat('pt-BR',{hour:'2-digit',minute:'2-digit',second:undefined,timeZone:tz});
-  const fmtDay    = new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'2-digit',timeZone:tz});
-  const fmtFull   = new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:tz});
-  const timeFormatter = (time)=>{
-    const ts = (typeof time==='object' && time.timestamp) ? time.timestamp : time;
-    return fmtFull.format(new Date(ts*1000));
-  };
-  const tickMarkFormatter = (time, tickMarkType)=>{
-    const ts = (typeof time==='object' && time.timestamp) ? time.timestamp : time;
-    if (tickMarkType === 0 || tickMarkType===1) return fmtDay.format(new Date(ts*1000));
-    return fmtTime.format(new Date(ts*1000));
-  };
-  return { timeFormatter, tickMarkFormatter };
-}
-
-/* ===== Gráficos ===== */
-function mkChart(containerId){
-  const { timeFormatter, tickMarkFormatter } = makeTimeFormatters(tzSelValue);
-  const el = $(containerId);
-  const chart = LightweightCharts.createChart(el,{
-    layout:{ background:{ color:'#0e1627' }, textColor:'#cbd5e1' },
-    grid:{ vertLines:{ color:'#1f2a40'}, horzLines:{ color:'#1f2a40'} },
-    rightPriceScale:{ borderColor:'#1f2a40' },
-    timeScale:{ borderColor:'#1f2a40', timeVisible:true, secondsVisible:false, tickMarkFormatter },
-    crosshair:{ mode:LightweightCharts.CrosshairMode.Normal },
-    handleScroll:{ mouseWheel:true, pressedMouseMove:true },
-    handleScale:{ axisPressedMouseMove:true, mouseWheel:true, pinch:true },
-    localization:{ locale:'pt-BR', timeFormatter }
+/* ===== API helpers ===== */
+async function postForm(data){
+  const res = await fetch(ENDPOINT, {
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
+    body: new URLSearchParams(data).toString()
   });
-  const candle = chart.addCandlestickSeries({
-    upColor:'#16a34a', downColor:'#ef4444', borderVisible:false,
-    wickUpColor:'#16a34a', wickDownColor:'#ef4444'
-  });
-  chart.timeScale().applyOptions({ rightOffset: 5, barSpacing: 3 });
-  const ro = new ResizeObserver(()=>{
-    const r = el.getBoundingClientRect();
-    chart.resize(Math.floor(r.width), Math.floor(r.height));
-  });
-  ro.observe(el);
-  return { chart, candle };
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  return await res.json();
 }
-const L = mkChart('chartL');
-const R = mkChart('chartR');
 
-function reapplyTimezone(chart){
-  const { timeFormatter, tickMarkFormatter } = makeTimeFormatters(tzSelValue);
-  chart.applyOptions({
-    localization:{ locale:'pt-BR', timeFormatter },
-    timeScale: { tickMarkFormatter }
+/* ===== CRUD ===== */
+async function loadList(){
+  const admin_key = getAdminKey();
+  if(!admin_key){ alert('Informe a chave admin'); return; }
+  const r = await postForm({ action:'admin_list', admin_key });
+  if(!r.ok){ alert('Falha: '+(r.reason||'erro')); return; }
+  const tb = $('#tbl tbody'); tb.innerHTML='';
+  r.items.forEach(it=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${it.email}</td>
+      <td>${it.plano}</td>
+      <td>${it.expira_em||''}</td>
+      <td>${it.ativo?'<span class="pill pill-ok">ativo</span>':'<span class="pill pill-bad">inativo</span>'}</td>
+      <td>${it.role||'user'}</td>`;
+    tr.onclick = ()=>{
+      $('#email').value = it.email;
+      $('#plano').value = it.plano||'mensal';
+      $('#expira').value = it.expira_em||'';
+      $('#ativo').value = it.ativo?'TRUE':'FALSE';
+      $('#role').value  = it.role||'user';
+    };
+    tb.appendChild(tr);
   });
 }
 
-function setDataPreserveView(series, chart, data){
-  const ts = chart.timeScale();
-  const atRightEdge = Math.abs(ts.scrollPosition()) < 1e-2;
-  const vr = ts.getVisibleLogicalRange();
-  series.setData(data);
-  if(!atRightEdge && vr){ ts.setVisibleLogicalRange(vr); } else { ts.scrollToRealTime(); }
-}
-
-/* ===== IA (JSONP) ===== */
-// helper JSONP genérico
-function jsonp(url, params={}, cbField='callback'){
-  return new Promise((resolve, reject)=>{
-    const cbName = 'iaCB_' + Math.random().toString(36).slice(2);
-    const s = document.createElement('script');
-    const usp = new URLSearchParams(params);
-    usp.set(cbField, cbName);
-    const sep = url.includes('?') ? '&' : '?';
-    s.src = url + sep + usp.toString();
-
-    let finished = false;
-    window[cbName] = (data)=>{ finished=true; cleanup(); resolve(data); };
-    s.onerror = ()=>{ cleanup(); reject(new Error('Erro ao carregar JSONP')); };
-    document.head.appendChild(s);
-
-    function cleanup(){
-      try{ document.head.removeChild(s); }catch(_){}
-      try{ delete window[cbName]; }catch(_){}
-    }
-    setTimeout(()=>{ if(!finished){ cleanup(); reject(new Error('Timeout JSONP')); } }, 10000);
+async function createUser(){
+  const admin_key = getAdminKey();
+  const email = $('#email').value.trim().toLowerCase();
+  if(!email) return alert('Informe o e-mail');
+  const r = await postForm({
+    action:'admin_create', admin_key,
+    email, plano:$('#plano').value, expira_em:$('#expira').value,
+    ativo:$('#ativo').value, role:$('#role').value
   });
+  if(!r.ok) return alert('Falha: '+(r.reason||'erro'));
+  await loadList();
 }
 
-function getIaConfig(){
-  return { url: $('iaUrl').value.trim(), key: $('iaKey').value.trim(), auto: $('iaAuto').checked };
+async function updateUser(){
+  const admin_key = getAdminKey();
+  const email = $('#email').value.trim().toLowerCase();
+  if(!email) return alert('Informe o e-mail');
+  const r = await postForm({
+    action:'admin_update', admin_key,
+    email, plano:$('#plano').value, expira_em:$('#expira').value,
+    ativo:$('#ativo').value, role:$('#role').value
+  });
+  if(!r.ok) return alert('Falha: '+(r.reason||'erro'));
+  await loadList();
 }
 
-// >>> Substituída: usa JSONP (sem CORS)
-async function callIaWebhook(payload){
-  const { url, key } = getIaConfig();
-  if(!url) throw new Error('IA URL vazia');
-  // compacta o payload para URL
-  const compact = {
-    symbol: payload.symbol,
-    tf: payload.tf,
-    tz: payload.tz,
-    local: payload.local,
-    last: (payload.ohlc||[]).slice(-120)
-  };
-  const q = btoa(JSON.stringify(compact));
-  const params = { q };
-  // se quiser anexar uma chave via query: params.key = key;
-  if (key) params.key = key;
-  const res = await jsonp(url, params);  // espera { ok:true, advice:"..." }
-  if(!res || res.ok !== true) throw new Error(res && res.error ? res.error : 'Falha na IA');
-  return res;
+async function deleteUser(){
+  const admin_key = getAdminKey();
+  const email = $('#email').value.trim().toLowerCase();
+  if(!email) return alert('Informe o e-mail');
+  if(!confirm('Apagar '+email+'?')) return;
+  const r = await postForm({ action:'admin_delete', admin_key, email });
+  if(!r.ok) return alert('Falha: '+(r.reason||'erro'));
+  $('#email').value=''; $('#expira').value='';
+  await loadList();
 }
 
-function applyIaAdvice(side, obj){
-  const el = side==='L' ? $('iaBadgeL') : $('iaBadgeR');
-  const txt = obj && obj.advice ? obj.advice : '—';
-  const cls = /compr/i.test(txt) ? 'b-green' : (/vend/i.test(txt) ? 'b-red' : 'b-yellow');
-  el.className = 'badge '+cls;
-  el.textContent = 'IA: '+txt;
-}
-
-/* ===== Cabeçalho & badges ===== */
-function pctClass(p){ return p>0? 'b-green' : (p<0? 'b-red' : 'b-yellow'); }
-async function updatePairHeader(side, symbol, tf){
-  const el = side==='L'? $('pairTitleL') : $('pairTitleR');
-  try{
-    const [px, day] = await Promise.all([
-      fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`).then(r=>r.json()),
-      dayStats(symbol)
-    ]);
-    const price = +px.price;
-    const pct = day.pct;
-    const pctTxt = (pct==null? '—' : (pct>0? '+'+pct.toFixed(2): pct.toFixed(2))+'%');
-    const pCls = pctClass(pct);
-    const quote = symbol.endsWith('USDT')?'USDT':'BRL';
-    const pairLabel = `${symbol.slice(0,-(quote==='USDT'?4:3))}/${quote}`;
-    el.innerHTML = `
-      ${pairLabel}
-      <span class="sub">(${tf})</span>
-      <span class="badge">${quote==='USDT'? fmtNum(price,2)+' USDT' : price.toLocaleString('pt-BR')+' BRL'}</span>
-      <span class="badge ${pCls}" style="margin-left:6px">${pctTxt}</span>
-    `;
-    (side==='L'? $('pctBadgeL'): $('pctBadgeR')).className='badge '+pCls;
-    (side==='L'? $('pctBadgeL'): $('pctBadgeR')).textContent='24h: '+pctTxt;
-  }catch{
-    el.textContent = symbol + ` (${tf})`;
-  }
-}
-function setBadge(el, text, cls){ el.className='badge '+cls; el.textContent=text; }
-function decideLocalAndBadges(side, data){
-  if(!data.length){
-    const ids = side==='L' ? ['tendL','recL','stBadgeL','mkrBadgeL','atrBadgeL'] : ['tendR','recR','stBadgeR','mkrBadgeR','atrBadgeR'];
-    ids.forEach(id=> setBadge($(id),'—',''));
-    applyIaAdvice(side, {advice:'—'}); return {tend:'Mista', rec:'Aguardar'};
-  }
-  const st = calcSuperTrend(data, 10, 3);
-  const closes = data.map(d=>d.close);
-  const mkr = mkrSmooth(closes, 14, 2);
-
-  const dirST = st.dir;  const atr = st.atr; const slope = mkr.slope;
-  const stText = dirST>0? 'ST: Alta' : (dirST<0? 'ST: Baixa' : 'ST: Neutra');
-  const stCls  = dirST>0? 'b-green' : (dirST<0? 'b-red' : 'b-yellow');
-  const mkrText= (slope>0? 'MKR: ↑' : (slope<0? 'MKR: ↓' : 'MKR: →')) + `  Δ${fmtNum(mkr.delta,2)}`;
-  const mkrCls = slope>0? 'b-green' : (slope<0? 'b-red' : 'b-yellow');
-
-  const sameBear = (dirST<0 && slope<0);
-  const sameBull = (dirST>0 && slope>0);
-  const tendencia = sameBull? 'Alta' : (sameBear? 'Baixa' : 'Mista');
-  const tendCls   = sameBull? 'b-green' : (sameBear? 'b-red' : 'b-yellow');
-  let rec = 'Aguardar', recCls='b-blue';
-  if(sameBull){ rec='Comprar (confluência)'; recCls='b-green'; }
-  else if(sameBear){ rec='Vender / reduzir'; recCls='b-red'; }
-
-  if(side==='L'){
-    setBadge($('tendL'), `Tendência: ${tendencia}`, tendCls);
-    setBadge($('recL'),  `Recomendação: ${rec}`, recCls);
-    setBadge($('stBadgeL'), stText, stCls);
-    setBadge($('mkrBadgeL'), mkrText, mkrCls);
-    setBadge($('atrBadgeL'), `ATR: ${fmtNum(atr,2)}`, 'b-blue');
-  }else{
-    setBadge($('tendR'), `Tendência: ${tendencia}`, tendCls);
-    setBadge($('recR'),  `Recomendação: ${rec}`, recCls);
-    setBadge($('stBadgeR'), stText, stCls);
-    setBadge($('mkrBadgeR'), mkrText, mkrCls);
-    setBadge($('atrBadgeR'), `ATR: ${fmtNum(atr,2)}`, 'b-blue');
-  }
-  return {tend:tendencia, rec};
-}
-
-/* ===== Carregar por lado (com IA) ===== */
-async function loadSide(side){
-  const coin  = (side==='L'? $('coinL').value : $('coinR').value);
-  const quote = (side==='L'? $('quoteL').value : $('quoteR').value);
-  const tfLbl = (side==='L'? $('tfL').value   : $('tfR').value);
-  const len   = (side==='L'? +$('lenL').value : +$('lenR').value);
-  const symbol= symbolOf(coin,quote);
-  const intv  = tfMap[tfLbl];
-
-  const data = await fetchKlines(symbol, intv, len);
-  if(side==='L') setDataPreserveView(L.candle, L.chart, data);
-  else          setDataPreserveView(R.candle, R.chart, data);
-
-  updatePairHeader(side, symbol, tfLbl);
-
-  // cálculo local (sempre)
-  const local = decideLocalAndBadges(side, data);
-
-  // IA (opcional via JSONP)
-  const iaCfg = getIaConfig();
-  if(iaCfg.auto && data.length){
-    try{
-      const payload = { symbol, tf: tfLbl, tz: tzSelValue, ohlc: data.slice(-120), local };
-      const resp = await callIaWebhook(payload);
-      applyIaAdvice(side, resp);
-    }catch(err){
-      console.warn('[IA] falhou, fallback local:', err);
-      applyIaAdvice(side, {advice: local.rec});
-    }
-  }else{
-    applyIaAdvice(side, {advice: local.rec});
-  }
-}
-
-/* ===== Refresh geral ===== */
-async function refreshAll(){
-  await fetchTopQuotes();
-  await Promise.all([loadSide('L'), loadSide('R')]);
-}
-
-/* ===== Controles ===== */
-['coinL','quoteL','tfL','lenL'].forEach(id=> $(id).addEventListener('change', ()=> loadSide('L')));
-['coinR','quoteR','tfR','lenR'].forEach(id=> $(id).addEventListener('change', ()=> loadSide('R')));
-$('btnRefresh').onclick = refreshAll;
-
-/* ===== Botão Testar IA ===== */
-$('btnIaTest')?.addEventListener('click', async ()=>{
-  try{
-    const res = await jsonp($('iaUrl').value.trim(), { sample: 1 });
-    alert('IA OK: '+ (res && (res.message||res.advice||'sucesso')));
-  }catch(e){
-    alert('Falha ao chamar IA: '+e.message);
-  }
-});
-
-/* ===== Fuso horário ===== */
-$('tzSel').addEventListener('change', ()=>{
-  tzSelValue = $('tzSel').value;
-  reapplyTimezone(L.chart);
-  reapplyTimezone(R.chart);
-  $('lastTs').textContent = `Atualizado (${tzSelValue}): ` + nowTxt();
-});
-
-/* ===== Auto refresh ===== */
-let timer=null;
-function setAuto(ms){ if(timer) clearInterval(timer); if(ms>0) timer = setInterval(refreshAll, ms); }
-$('autoSel').onchange = ()=> setAuto(+$('autoSel').value);
+/* ===== UI hooks ===== */
+$('#btnSaveKey').onclick = ()=> setAdminKey($('#adminKey').value.trim());
+$('#btnReload').onclick  = loadList;
+$('#btnCreate').onclick  = createUser;
+$('#btnUpdate').onclick  = updateUser;
+$('#btnDelete').onclick  = deleteUser;
 
 /* ===== Start ===== */
-(async ()=>{
-  $('coinL').value='BTC'; $('quoteL').value='BRL';  $('tfL').value='3M'; $('lenL').value='360';
-  $('coinR').value='BTC'; $('quoteR').value='USDT'; $('tfR').value='3M'; $('lenR').value='360';
-  await refreshAll();
-  setAuto(+$('autoSel').value); // 5s default
+(() => {
+  setAdminKey(getAdminKey()); // carrega/default
+  loadList();
 })();
 </script>
 </body>
