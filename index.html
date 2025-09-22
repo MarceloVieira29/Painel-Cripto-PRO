@@ -5,36 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Painel Cripto PRO — 2 Gráficos + ST/MKR + IA + Contas</title>
 
-<!-- Lightweight Charts -->
-<script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
-
-<!-- Firebase (modular v10 CDN) -->
-<script type="module">
-  // ===== Firebase SDKs (modular) =====
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
-  import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
-  import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
-
-  // ====== SEU CONFIG (copiado do console) ======
-  const firebaseConfig = {
-    apiKey: "AIzaSyAN70DLpn18XA11_JwjtkodpaOjquKEs3U",
-    authDomain: "painel-cripto-pro.firebaseapp.com",
-    projectId: "painel-cripto-pro",
-    storageBucket: "painel-cripto-pro.firebasestorage.app",
-    messagingSenderId: "897004329063",
-    appId: "1:897004329063:web:b486598ff0f42fb52e5cc2",
-    measurementId: "G-82VVH8YF7Y"
-  };
-
-  // ====== Inicialização ======
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db   = getFirestore(app);
-
-  // Expor no window para outros scripts do HTML
-  window._fb = { app, auth, db, onAuthStateChanged, signInWithEmailAndPassword, signOut, doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs };
-</script>
-
+<!-- ================== Estilos ================== -->
 <style>
   :root{
     --bg:#0b1220;--panel:#0e1627;--soft:#111b2f;--muted:#334155;--text:#e5e7eb;
@@ -60,22 +31,67 @@
   .b-red{border-color:#7f1d1d;color:#fecaca;background:#3b0a0a}
   .b-yellow{border-color:#854d0e;color:#fde68a;background:#3a2a06}
   .b-blue{border-color:#1d4ed8;color:#dbeafe;background:#0b1e43}
-  .chart{height:520px}
+  .chart{height:540px}
   .trendRow{display:flex;gap:8px;flex-wrap:wrap}
   .split{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
-  .hide{display:none}
-  .right{margin-left:auto}
-  .admin{background:#0d1f33;border:1px dashed #2a456d;padding:10px;border-radius:10px}
-  .danger{background:#3a0a0a;border-color:#7f1d1d}
-  .success{background:#052e1a;border-color:#064e3b}
-  .pill{padding:4px 10px;border-radius:999px;border:1px solid #2b3750}
+  footer{margin-top:12px;color:#9aa8bf;font-size:12px;text-align:center}
+
+  /* Modais */
+  .mask{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:20}
+  .modal{width:520px;max-width:92vw;background:var(--panel);border:1px solid #1f2a40;border-radius:14px;padding:16px}
+  .modal h3{margin:0 0 10px 0}
+  .vstack{display:flex;flex-direction:column;gap:8px}
+  .hint{font-size:12px;color:#9aa8bf}
+  .toast{position:fixed;left:16px;bottom:16px;background:#3a2a06;color:#fde68a;border:1px solid #854d0e;padding:8px 12px;border-radius:10px;display:none;z-index:25}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{border:1px solid #1f2a40;padding:6px 8px}
+  th{background:#0b1425}
 </style>
+
+<!-- ================== Charts ================== -->
+<script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+
+<!-- ================== Firebase compat (ordem importa) ================== -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+<!-- ================== Firebase init ================== -->
+<script>
+  // Seu config
+  const firebaseConfig = {
+    apiKey: "AIzaSyAN70DLpn18XA11_JwjtkodpaOjquKEs3U",
+    authDomain: "painel-cripto-pro.firebaseapp.com",
+    projectId: "painel-cripto-pro",
+    storageBucket: "painel-cripto-pro.firebasestorage.app",
+    messagingSenderId: "897004329063",
+    appId: "1:897004329063:web:b486598ff0f42fb52e5cc2",
+    measurementId: "G-82VVH8YF7Y"
+  };
+  const _app = firebase.initializeApp(firebaseConfig);
+  const _auth = firebase.auth();
+  const _db   = firebase.firestore();
+  window._fb  = { app:_app, auth:_auth, db:_db };
+
+  // Helper para garantir que o Firebase está pronto antes de usar
+  function waitForFirebase(){
+    return new Promise((resolve,reject)=>{
+      let tries=0;
+      (function check(){
+        if(window._fb && window._fb.auth && window._fb.db) return resolve(window._fb);
+        if(++tries>200) return reject(new Error('Firebase não inicializou'));
+        setTimeout(check,25);
+      })();
+    });
+  }
+</script>
 </head>
+
 <body>
 <div class="wrap">
-  <h1>Painel Cripto PRO — Candles (2 painéis) + Tendência (ST/MKR) + IA + Contas</h1>
+  <h1>Painel Cripto PRO — 2 Gráficos + Tendência (ST/MKR) + IA + Contas</h1>
 
-  <!-- Topbar -->
+  <!-- Topo -->
   <div class="topbar">
     <div class="split">
       <div class="row">
@@ -93,79 +109,43 @@
             <option value="5000" selected>5s</option>
             <option value="10000">10s</option>
             <option value="15000">15s</option>
-            <option value="30000">30s</option>
           </select>
         </label>
-
         <label class="chip">IA Webhook
           <input id="iaUrl" placeholder="https://seu-endpoint-ia/exec">
         </label>
         <label class="chip">Chave
           <input id="iaKey" placeholder="Bearer xxxxx (opcional)">
         </label>
-        <label class="chip"><input type="checkbox" id="iaAuto"> IA em cada refresh</label>
+        <label class="chip"><input type="checkbox" id="iaAuto" checked> IA em cada refresh</label>
         <button id="btnIaTest">Testar IA</button>
 
-        <label class="chip">Fuso:
-          <select id="tzSel">
-            <option value="America/Sao_Paulo" selected>Brasil (BRT)</option>
-            <option value="UTC">UTC</option>
-            <option value="America/New_York">NY (ET)</option>
-            <option value="Europe/Lisbon">Lisboa</option>
-          </select>
-        </label>
-
-        <span class="chip right" id="authStatus">Sessão: <b>desconectado</b></span>
-        <button id="btnLogin">Entrar</button>
-        <button id="btnLogout" class="hide">Sair</button>
+        <span class="chip">Sessão: <b id="sessStatus" class="muted">desconectado</b></span>
+        <button id="btnOpenLogin">Entrar</button>
+        <button id="btnLogout" style="display:none">Sair</button>
+        <button id="btnAdmin" style="display:none">Admin</button>
       </div>
     </div>
   </div>
 
-  <!-- Admin section -->
-  <div id="adminBox" class="admin hide" style="margin-top:12px">
-    <div class="row">
-      <b>Admin</b>
-      <span class="pill muted">Convites & Permissões</span>
-    </div>
-    <div class="row" style="margin-top:6px">
-      <label class="chip">Convidar e-mail
-        <input id="invEmail" placeholder="novo@cliente.com">
-      </label>
-      <label class="chip">Plano
-        <select id="invPlan">
-          <option value="trial">trial</option>
-          <option value="mensal">mensal</option>
-          <option value="anual">anual</option>
-        </select>
-      </label>
-      <button id="btnInvite">Criar/Atualizar Convite</button>
-
-      <label class="chip">UID p/ permissões
-        <input id="permUid" placeholder="cole o UID do usuário">
-      </label>
-      <button id="btnGrantPerm">Aplicar permissões padrão (ST/MKR/IA + pares + TFs)</button>
-      <span class="muted">Dica: pegue o UID em Authentication → Users</span>
-    </div>
-  </div>
-
-  <!-- Painéis -->
-  <div id="gates" class="chip danger" style="margin-top:10px">Aguarde: validando acesso…</div>
-
-  <div id="panel" class="grid hide" style="opacity:0.98">
-    <!-- ESQUERDA -->
-    <div class="card" id="cardL">
+  <!-- Grids -->
+  <div class="grid">
+    <!-- L -->
+    <div class="card">
       <div class="headRow">
         <div class="row"><span id="pairTitleL" class="title">—</span></div>
         <div class="row">
           <label class="chip">Moeda
-            <select id="coinL"></select>
+            <select id="coinL"><option selected>BTC</option><option>ETH</option></select>
           </label>
           <label class="chip">Contra
             <select id="quoteL"><option>BRL</option><option selected>USDT</option></select>
           </label>
           <label class="chip">TF
-            <select id="tfL"></select>
+            <select id="tfL">
+              <option>1M</option><option selected>3M</option><option>5M</option><option>15M</option>
+              <option>30M</option><option>1H</option><option>1D</option><option>1MO</option>
+            </select>
           </label>
           <label class="chip">Velas
             <select id="lenL"><option>120</option><option selected>360</option><option>720</option><option>1200</option></select>
@@ -174,9 +154,9 @@
       </div>
       <div id="chartL" class="chart"></div>
       <div class="row" style="margin-top:10px">
-        <div class="trendRow" id="trendL">
+        <div class="trendRow">
           <span class="badge b-yellow" id="tendL">Tendência: —</span>
-          <span class="badge b-blue" id="recL">Recomendação: —</span>
+          <span class="badge b-blue"   id="recL">Recomendação: —</span>
           <span class="badge" id="stBadgeL">ST: —</span>
           <span class="badge" id="mkrBadgeL">MKR: —</span>
           <span class="badge" id="atrBadgeL">ATR: —</span>
@@ -186,19 +166,22 @@
       </div>
     </div>
 
-    <!-- DIREITA -->
-    <div class="card" id="cardR">
+    <!-- R -->
+    <div class="card">
       <div class="headRow">
         <div class="row"><span id="pairTitleR" class="title">—</span></div>
         <div class="row">
           <label class="chip">Moeda
-            <select id="coinR"></select>
+            <select id="coinR"><option selected>BTC</option><option>ETH</option></select>
           </label>
           <label class="chip">Contra
             <select id="quoteR"><option>BRL</option><option selected>USDT</option></select>
           </label>
           <label class="chip">TF
-            <select id="tfR"></select>
+            <select id="tfR">
+              <option>1M</option><option selected>3M</option><option>5M</option><option>15M</option>
+              <option>30M</option><option>1H</option><option>1D</option><option>1MO</option>
+            </select>
           </label>
           <label class="chip">Velas
             <select id="lenR"><option>120</option><option selected>360</option><option>720</option><option>1200</option></select>
@@ -207,9 +190,9 @@
       </div>
       <div id="chartR" class="chart"></div>
       <div class="row" style="margin-top:10px">
-        <div class="trendRow" id="trendR">
+        <div class="trendRow">
           <span class="badge b-yellow" id="tendR">Tendência: —</span>
-          <span class="badge b-blue" id="recR">Recomendação: —</span>
+          <span class="badge b-blue"   id="recR">Recomendação: —</span>
           <span class="badge" id="stBadgeR">ST: —</span>
           <span class="badge" id="mkrBadgeR">MKR: —</span>
           <span class="badge" id="atrBadgeR">ATR: —</span>
@@ -220,357 +203,317 @@
     </div>
   </div>
 
-  <footer style="margin-top:10px;color:#9aa8bf;font-size:12px;text-align:center">
-    Painel Cripto Pro © 2025 — Desenvolvido por Marcelo. Para toda Honra e Glória do Senhor Jesus!
-  </footer>
+  <footer>Painel Cripto Pro © 2025 — Desenvolvido por Marcelo. Para toda Honra e Glória do Senhor Jesus!</footer>
 </div>
 
-<!-- Login Modal super simples -->
-<div id="loginModal" class="hide" style="position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center">
-  <div style="background:#0e1627;border:1px solid #1f2a40;border-radius:12px;padding:16px;min-width:320px">
-    <h3 style="margin:0 0 10px 0">Entrar</h3>
-    <div class="row"><input id="loginEmail" placeholder="email"/></div>
-    <div class="row" style="margin-top:6px"><input id="loginPass" type="password" placeholder="senha"/></div>
-    <div class="row" style="margin-top:10px">
-      <button id="loginGo">Entrar</button>
-      <button id="loginCancel">Cancelar</button>
-      <span id="loginMsg" class="muted"></span>
+<!-- ===== Modal Login ===== -->
+<div class="mask" id="loginMask">
+  <div class="modal">
+    <h3>Entrar</h3>
+    <div class="vstack">
+      <input id="inEmail" placeholder="seu@email.com"/>
+      <input id="inPass"  placeholder="senha" type="password"/>
+    </div>
+    <div class="row" style="justify-content:flex-end;margin-top:10px">
+      <button id="btnCancelLogin">Cancelar</button>
+      <button id="btnDoLogin">Entrar</button>
+    </div>
+    <p class="hint">Se não existir, a conta será criada automaticamente.</p>
+  </div>
+</div>
+
+<!-- ===== Modal Admin (convites) ===== -->
+<div class="mask" id="adminMask">
+  <div class="modal">
+    <h3>Admin — Convites</h3>
+    <div class="vstack" style="margin-bottom:8px">
+      <div class="row" style="flex-wrap:wrap">
+        <input id="invEmail" placeholder="email do usuário">
+        <select id="invRole">
+          <option value="user" selected>user</option>
+          <option value="admin">admin</option>
+        </select>
+        <button id="btnAddInvite">Adicionar convite</button>
+      </div>
+      <p class="hint">Usuários convidados: ao fazer login, recebem o papel do convite.</p>
+    </div>
+    <table id="tblInvites">
+      <thead><tr><th>Email</th><th>Papel</th><th>Ações</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="row" style="justify-content:flex-end;margin-top:10px">
+      <button id="btnCloseAdmin">Fechar</button>
     </div>
   </div>
 </div>
 
-<script>
-// ===== Helpers UI =====
-const $ = id => document.getElementById(id);
-const fmtNum  = (n, d=2) => Number.isFinite(n)? n.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}) : '—';
-let tz = 'America/Sao_Paulo';
-const nowTxt = ()=> new Intl.DateTimeFormat('pt-BR',{dateStyle:'short', timeStyle:'medium', timeZone: tz}).format(new Date());
-const tfMap = { '1m':'1m','3m':'3m','5m':'5m','15m':'15m','30m':'30m','1h':'1h','1d':'1d','1mo':'1M' }; // Binance usa '1M' para 1 mês
-const defaultPairs = ["BTC","ETH","BNB","SOL","ADA","XRP","DOGE","DOT","MATIC","LTC"];
-let FEATURES = { st:false, mkr:false, ia:false };
-let ALLOWED_PAIRS = defaultPairs.slice();
-let ALLOWED_TFS = ["3m","5m","15m","30m","1h","1d","1mo"];
-let userDoc = null;
+<div class="toast" id="toast"></div>
 
-// ===== Quotes topo =====
+<!-- ================== App Script ================== -->
+<script>
+/* ===== Helpers ===== */
+const $ = id => document.getElementById(id);
+const fmtNum = (n,d=2)=>Number.isFinite(n)?n.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}):'—';
+function toast(msg,ms=2500){const t=$('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',ms);}
+
+/* ===== Binance + Indicadores ===== */
+const tfMap={ '1M':'1m','3M':'3m','5M':'5m','15M':'15m','30M':'30m','1H':'1h','1D':'1d','1MO':'1M' };
+const symbolOf=(c,q)=>(c+q).toUpperCase();
+
 async function fetchTopQuotes(){
   try{
-    const [pU, pB, usdt] = await Promise.all([
+    const [pU,pB,usdt]=await Promise.all([
       fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT').then(r=>r.json()),
       fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCBRL').then(r=>r.json()),
       fetch('https://api.binance.com/api/v3/ticker/price?symbol=USDTBRL').then(r=>r.json()).catch(()=>({price:null}))
     ]);
-    $('q_btcusdt').textContent = fmtNum(+pU.price,2)+' USDT';
-    $('q_btcbrl').textContent  = (+pB.price).toLocaleString('pt-BR');
-    $('q_usdbrl').textContent  = Number.isFinite(+usdt.price)? fmtNum(+usdt.price,2) : '—';
-    $('lastTs').textContent    = `Atualizado (${tz}): ` + nowTxt();
-  }catch(e){
-    $('lastTs').textContent    = `Atualizado (${tz}): erro`;
-  }
+    $('q_btcusdt').textContent=fmtNum(+pU.price,2)+' USDT';
+    $('q_btcbrl').textContent=(+pB.price).toLocaleString('pt-BR');
+    $('q_usdbrl').textContent=Number.isFinite(+usdt.price)?fmtNum(+usdt.price,2):'—';
+    $('lastTs').textContent='Atualizado: '+new Date().toLocaleString('pt-BR');
+  }catch{ $('lastTs').textContent='Atualizado: erro'; }
 }
-
-// ===== Dados Binance =====
 async function fetchKlines(symbol, interval, limit=360){
-  const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
-  const arr = await fetch(url).then(r=>r.json());
-  if(!Array.isArray(arr)) return [];
-  return arr.map(k=>({ time: Math.floor(k[0]/1000), open:+k[1], high:+k[2], low:+k[3], close:+k[4] }));
+  const url=`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+  const arr=await fetch(url).then(r=>r.json());
+  if(!Array.isArray(arr)||!arr.length) return [];
+  return arr.map(k=>({time:Math.floor(k[0]/1000),open:+k[1],high:+k[2],low:+k[3],close:+k[4]}));
 }
 async function dayStats(symbol){
-  try{
-    const j = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`).then(r=>r.json());
-    const pct = j && j.priceChangePercent!=null ? +j.priceChangePercent : null;
-    return { pct };
-  }catch{ return { pct:null }; }
+  try{const j=await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`).then(r=>r.json());
+       const pct=j&&j.priceChangePercent!=null?+j.priceChangePercent:null; return {pct};}
+  catch{return{pct:null}}
 }
-
-// ===== Indicadores (mesmos do seu painel) =====
-function rma(vals,len){ const out=[]; let p=null,a=1/len; for(let i=0;i<vals.length;i++){ const v=vals[i]; p = (p==null)? v : (p + a*(v-p)); out.push(p);} return out; }
-function trueRange(h,l,cPrev){ return Math.max(h-l, Math.abs(h-cPrev), Math.abs(l-cPrev)); }
+function rma(vals,len){const out=[];let p=null,a=1/len;for(let i=0;i<vals.length;i++){const v=vals[i];p=(p==null)?v:(p+a*(v-p));out.push(p)}return out}
+function trueRange(h,l,cPrev){return Math.max(h-l,Math.abs(h-cPrev),Math.abs(l-cPrev))}
 function calcSuperTrend(ohlc,len=10,mul=3){
-  const n=ohlc.length; if(!n) return {dir:0, atr:0, line:[]};
-  const tr=[]; for(let i=0;i<n;i++){ const cp=i>0? ohlc[i-1].close : ohlc[i].close; tr.push(trueRange(ohlc[i].high, ohlc[i].low, cp)); }
-  const atr=rma(tr,len); const st=new Array(n).fill(null), dir=new Array(n).fill(0);
-  for(let i=0;i<n;i++){
-    const o=ohlc[i], mid=(o.high+o.low)/2, ub=mid+mul*atr[i], lb=mid-mul*atr[i];
-    if(i===0){ st[i]=ub; dir[i]=-1; continue; }
-    const prevSt=st[i-1], prevDir=dir[i-1];
-    if(prevDir===-1){ const newUb=Math.min(ub,prevSt); st[i]=(o.close>newUb)?lb:newUb; dir[i]=(o.close>newUb)?+1:-1; }
-    else { const newLb=Math.max(lb,prevSt); st[i]=(o.close<newLb)?ub:newLb; dir[i]=(o.close<newLb)?-1:+1; }
+  const n=ohlc.length;if(!n) return {dir:0,atr:0,line:[]};
+  const tr=[];for(let i=0;i<n;i++){const cp=i>0?ohlc[i-1].close:ohlc[i].close;tr.push(trueRange(ohlc[i].high,ohlc[i].low,cp))}
+  const atr=rma(tr,len);const st=new Array(n).fill(null),dir=new Array(n).fill(0);
+  for(let i=0;i<n;i++){const o=ohlc[i],mid=(o.high+o.low)/2,ub=mid+mul*atr[i],lb=mid-mul*atr[i];
+    if(i===0){st[i]=ub;dir[i]=-1;continue}
+    const prevSt=st[i-1],prevDir=dir[i-1];
+    if(prevDir===-1){const newUb=Math.min(ub,prevSt);st[i]=(o.close>newUb)?lb:newUb;dir[i]=(o.close>newUb)?+1:-1}
+    else{const newLb=Math.max(lb,prevSt);st[i]=(o.close<newLb)?ub:newLb;dir[i]=(o.close<newLb)?-1:+1}
   }
-  return { dir: dir[n-1], atr: atr[n-1], line: st };
+  return {dir:dir[n-1],atr:atr[n-1],line:st}
 }
-function K(kernel,x,bw){ const u=x/bw; return Math.exp(-0.5*u*u)/Math.sqrt(2*Math.PI); }
+function K(kernel,x,bw){const u=x/bw;return Math.exp(-0.5*u*u)/Math.sqrt(2*Math.PI)}
 function mkrSmooth(arr,bw=14,dev=2){
-  const n=arr.length; const mean=new Array(n), up=new Array(n), dn=new Array(n);
-  for(let i=0;i<n;i++){
-    let wsum=0,vsum=0,vsq=0; const left=Math.max(0,i-bw+1);
-    for(let j=left;j<=i;j++){ const w=K('Gaussian', i-j, bw/3); wsum+=w; vsum+=arr[j]*w; vsq+=arr[j]*arr[j]*w; }
-    const mu=vsum/wsum; const sd=Math.sqrt(Math.max(0,(vsq/wsum)-mu*mu));
-    mean[i]=mu; up[i]=mu+dev*sd; dn[i]=mu-dev*sd;
-  }
-  const slope = (n>1 && Number.isFinite(mean[n-1]) && Number.isFinite(mean[n-2])) ? (mean[n-1]-mean[n-2]) : 0;
-  return { mean, up, dn, slope, delta: slope };
+  const n=arr.length;const mean=new Array(n),up=new Array(n),dn=new Array(n);
+  for(let i=0;i<n;i++){let wsum=0,vsum=0,vsq=0;const left=Math.max(0,i-bw+1);
+    for(let j=left;j<=i;j++){const w=K('Gaussian',i-j,bw/3);wsum+=w;vsum+=arr[j]*w;vsq+=arr[j]*arr[j]*w}
+    const mu=vsum/wsum;const sd=Math.sqrt(Math.max(0,(vsq/wsum)-mu*mu));mean[i]=mu;up[i]=mu+dev*sd;dn[i]=mu-dev*sd}
+  const slope=(n>1&&Number.isFinite(mean[n-1])&&Number.isFinite(mean[n-2]))?(mean[n-1]-mean[n-2]):0;
+  return {mean,up,dn,slope,delta:slope}
 }
-
-// ===== Charts =====
-function makeFormatters(tz){
-  const fmtTime = new Intl.DateTimeFormat('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:tz});
-  const fmtDay  = new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'2-digit',timeZone:tz});
-  const fmtFull = new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:tz});
-  const timeFormatter = (t)=> fmtFull.format(new Date((t.timestamp||t)*1000));
-  const tickMarkFormatter = (t, typ)=> (typ<=1? fmtDay : fmtTime).format(new Date((t.timestamp||t)*1000));
-  return {timeFormatter, tickMarkFormatter};
+function mkChart(id){
+  const el=$(id);
+  const chart=LightweightCharts.createChart(el,{layout:{background:{color:'#0e1627'},textColor:'#cbd5e1'},
+    grid:{vertLines:{color:'#1f2a40'},horzLines:{color:'#1f2a40'}},rightPriceScale:{borderColor:'#1f2a40'},
+    timeScale:{borderColor:'#1f2a40',timeVisible:true,secondsVisible:false},crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
+    handleScroll:{mouseWheel:true,pressedMouseMove:true},handleScale:{axisPressedMouseMove:true,mouseWheel:true,pinch:true},
+    localization:{locale:'pt-BR'}});
+  const candle=chart.addCandlestickSeries({upColor:'#16a34a',downColor:'#ef4444',borderVisible:false,wickUpColor:'#16a34a',wickDownColor:'#ef4444'});
+  chart.timeScale().applyOptions({rightOffset:5,barSpacing:3});
+  new ResizeObserver(()=>{const r=el.getBoundingClientRect();chart.resize(Math.floor(r.width),Math.floor(r.height))}).observe(el);
+  return {chart,candle}
 }
-function mkChart(containerId){
-  const el = $(containerId);
-  const {timeFormatter, tickMarkFormatter} = makeFormatters(tz);
-  const chart = LightweightCharts.createChart(el,{
-    layout:{ background:{ color:'#0e1627' }, textColor:'#cbd5e1' },
-    grid:{ vertLines:{ color:'#1f2a40'}, horzLines:{ color:'#1f2a40'} },
-    rightPriceScale:{ borderColor:'#1f2a40' },
-    timeScale:{ borderColor:'#1f2a40', timeVisible:true, secondsVisible:false, tickMarkFormatter },
-    crosshair:{ mode:LightweightCharts.CrosshairMode.Normal },
-    handleScroll:{ mouseWheel:true, pressedMouseMove:true },
-    handleScale:{ axisPressedMouseMove:true, mouseWheel:true, pinch:true },
-    localization:{ locale:'pt-BR', timeFormatter }
-  });
-  const candle = chart.addCandlestickSeries({
-    upColor:'#16a34a', downColor:'#ef4444', borderVisible:false,
-    wickUpColor:'#16a34a', wickDownColor:'#ef4444'
-  });
-  chart.timeScale().applyOptions({ rightOffset:5, barSpacing:3 });
-  const ro = new ResizeObserver(()=>{ const r = el.getBoundingClientRect(); chart.resize(r.width, r.height); });
-  ro.observe(el);
-  return { chart, candle };
+const L=mkChart('chartL'), R=mkChart('chartR');
+function setDataPreserveView(series,chart,data){
+  const ts=chart.timeScale(), atRight=Math.abs(ts.scrollPosition())<1e-2, vr=ts.getVisibleLogicalRange();
+  series.setData(data); if(!atRight && vr){ ts.setVisibleLogicalRange(vr) } else { ts.scrollToRealTime() }
 }
-const L = mkChart('chartL');
-const R = mkChart('chartR');
-
-function setDataPreserve(series, chart, data){
-  const ts = chart.timeScale();
-  const atRight = Math.abs(ts.scrollPosition()) < 1e-2;
-  const vr = ts.getVisibleLogicalRange();
-  series.setData(data);
-  if(!atRight && vr) ts.setVisibleLogicalRange(vr); else ts.scrollToRealTime();
-}
-
-function setBadge(el, text, cls){ el.className = 'badge '+cls; el.textContent=text; }
-function pctClass(p){ return p>0?'b-green':(p<0?'b-red':'b-yellow'); }
-
-// ===== IA =====
-function getIaCfg(){
-  return { url: $('iaUrl').value.trim(), key: $('iaKey').value.trim(), auto: $('iaAuto').checked && FEATURES.ia };
-}
-async function callIA(payload){
-  const {url,key} = getIaCfg(); if(!url) throw new Error('sem IA URL');
-  const headers = {'Content-Type':'application/json'}; if(key) headers.Authorization = key;
-  const r = await fetch(url,{method:'POST',headers,body:JSON.stringify(payload)});
-  if(!r.ok) throw new Error('HTTP '+r.status);
-  return await r.json();
-}
-function applyIaAdvice(side, obj){
-  const el = side==='L'? $('iaBadgeL') : $('iaBadgeR');
-  const txt = obj && obj.advice ? obj.advice : '—';
-  const cls = /compr/i.test(txt) ? 'b-green' : (/vend/i.test(txt) ? 'b-red' : 'b-yellow');
-  setBadge(el,'IA: '+txt,cls);
-}
-
-// ===== Cabeçalhos, lógica local e carga =====
-async function updateHeader(side,symbol,tfLbl){
-  const el = side==='L'? $('pairTitleL') : $('pairTitleR');
+function pctClass(p){return p>0?'b-green':(p<0?'b-red':'b-yellow')}
+function setBadge(el,text,cls){el.className='badge '+cls;el.textContent=text}
+async function updatePairHeader(side,symbol,tf){
+  const el=side==='L'?$('pairTitleL'):$('pairTitleR');
   try{
-    const [px, day] = await Promise.all([
-      fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`).then(r=>r.json()),
-      dayStats(symbol)
+    const [px,day]=await Promise.all([
+      fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`).then(r=>r.json()), dayStats(symbol)
     ]);
-    const price = +px.price, quote = symbol.endsWith('USDT')?'USDT':'BRL';
-    const pct = day.pct, pctTxt = (pct==null?'—':(pct>0?'+':'')+pct.toFixed(2)+'%');
-    const pCls = pctClass(pct);
-    el.innerHTML = `
-      ${symbol.replace(quote,'')}/${quote}
-      <span class="sub">(${tfLbl})</span>
-      <span class="badge">${quote==='USDT'? fmtNum(price,2)+' USDT' : price.toLocaleString('pt-BR')+' BRL'}</span>
+    const price=+px.price, pct=day.pct, pctTxt=(pct==null?'—':(pct>0?`+${pct.toFixed(2)}`:pct.toFixed(2))+'%'),
+          pCls=pctClass(pct), quote=symbol.endsWith('USDT')?'USDT':'BRL',
+          pairLabel=`${symbol.slice(0,-(quote==='USDT'?4:3))}/${quote}`;
+    el.innerHTML=`${pairLabel} <span class="sub">(${tf})</span>
+      <span class="badge">${quote==='USDT'?fmtNum(price,2)+' USDT':price.toLocaleString('pt-BR')+' BRL'}</span>
       <span class="badge ${pCls}" style="margin-left:6px">${pctTxt}</span>`;
-    const pctBadge = side==='L'?$('pctBadgeL'):$('pctBadgeR'); setBadge(pctBadge,'24h: '+pctTxt,pCls);
-  }catch{ el.textContent = symbol+' ('+tfLbl+')'; }
+    (side==='L'?$('pctBadgeL'):$('pctBadgeR')).className='badge '+pCls;
+    (side==='L'?$('pctBadgeL'):$('pctBadgeR')).textContent='24h: '+pctTxt;
+  }catch{ el.textContent=symbol+` (${tf})` }
 }
-function decideLocal(side,data){
+function decideLocalAndBadges(side,data){
   if(!data.length){
-    (side==='L'?['tendL','recL','stBadgeL','mkrBadgeL','atrBadgeL']:['tendR','recR','stBadgeR','mkrBadgeR','atrBadgeR']).forEach(id=> setBadge($(id),'—',''));
-    applyIaAdvice(side,{advice:'—'}); return {rec:'Aguardar'};
+    const ids=side==='L'?[ 'tendL','recL','stBadgeL','mkrBadgeL','atrBadgeL']:[ 'tendR','recR','stBadgeR','mkrBadgeR','atrBadgeR'];
+    ids.forEach(id=>setBadge($(id),'—','')); (side==='L'?$('iaBadgeL'):$('iaBadgeR')).textContent='IA: —';
+    return {tend:'Mista',rec:'Aguardar'}
   }
-  const st  = FEATURES.st  ? calcSuperTrend(data,10,3) : {dir:0,atr:0};
-  const mkr = FEATURES.mkr ? mkrSmooth(data.map(d=>d.close),14,2) : {slope:0,delta:0};
-  const dir=st.dir, atr=st.atr, slope=mkr.slope;
-  const stText = dir>0?'ST: Alta':(dir<0?'ST: Baixa':'ST: Neutra');
-  const stCls  = dir>0?'b-green':(dir<0?'b-red':'b-yellow');
-  const mkrText=(slope>0?'MKR: ↑':(slope<0?'MKR: ↓':'MKR: →'))+'  Δ'+fmtNum(mkr.delta||0,2);
-  const mkrCls = slope>0?'b-green':(slope<0?'b-red':'b-yellow');
-
-  const sameBear = (dir<0 && slope<0);
-  const sameBull = (dir>0 && slope>0);
-  const tendencia = sameBull?'Alta':(sameBear?'Baixa':'Mista');
-  const tendCls   = sameBull?'b-green':(sameBear?'b-red':'b-yellow');
-  let rec='Aguardar', recCls='b-blue';
-  if(sameBull){rec='Comprar (confluência)'; recCls='b-green';}
-  else if(sameBear){rec='Vender / reduzir'; recCls='b-red';}
-
-  if(side==='L'){
-    setBadge($('tendL'),'Tendência: '+tendencia,tendCls);
-    setBadge($('recL'),rec,recCls);
-    setBadge($('stBadgeL'),stText,stCls);
-    setBadge($('mkrBadgeL'),mkrText,mkrCls);
-    setBadge($('atrBadgeL'),'ATR: '+fmtNum(atr||0,2),'b-blue');
-  }else{
-    setBadge($('tendR'),'Tendência: '+tendencia,tendCls);
-    setBadge($('recR'),rec,recCls);
-    setBadge($('stBadgeR'),stText,stCls);
-    setBadge($('mkrBadgeR'),mkrText,mkrCls);
-    setBadge($('atrBadgeR'),'ATR: '+fmtNum(atr||0,2),'b-blue');
-  }
-  return {rec};
+  const st=calcSuperTrend(data,10,3), closes=data.map(d=>d.close), mkr=mkrSmooth(closes,14,2);
+  const dirST=st.dir, atr=st.atr, slope=mkr.slope;
+  const stText=dirST>0?'ST: Alta':(dirST<0?'ST: Baixa':'ST: Neutra'), stCls=dirST>0?'b-green':(dirST<0?'b-red':'b-yellow');
+  const mkrText=(slope>0?'MKR: ↑':(slope<0?'MKR: ↓':'MKR: →'))+`  Δ${fmtNum(mkr.delta,2)}`, mkrCls=slope>0?'b-green':(slope<0?'b-red':'b-yellow');
+  const sameBear=(dirST<0&&slope<0), sameBull=(dirST>0&&slope>0);
+  const tendencia=sameBull?'Alta':(sameBear?'Baixa':'Mista'), tendCls=sameBull?'b-green':(sameBear?'b-red':'b-yellow');
+  let rec='Aguardar', recCls='b-blue'; if(sameBull){rec='Comprar (confluência)';recCls='b-green'} else if(sameBear){rec='Vender / reduzir';recCls='b-red'}
+  if(side==='L'){ setBadge($('tendL'),`Tendência: ${tendencia}`,tendCls); setBadge($('recL'),`Recomendação: ${rec}`,recCls);
+    setBadge($('stBadgeL'),stText,stCls); setBadge($('mkrBadgeL'),mkrText,mkrCls); setBadge($('atrBadgeL'),`ATR: ${fmtNum(atr,2)}`,'b-blue')}
+  else { setBadge($('tendR'),`Tendência: ${tendencia}`,tendCls); setBadge($('recR'),`Recomendação: ${rec}`,recCls);
+    setBadge($('stBadgeR'),stText,stCls); setBadge($('mkrBadgeR'),mkrText,mkrCls); setBadge($('atrBadgeR'),`ATR: ${fmtNum(atr,2)}`,'b-blue')}
+  return {tend:tendencia,rec}
 }
-
 async function loadSide(side){
-  const coin  = (side==='L'? $('coinL'): $('coinR')).value;
-  const quote = (side==='L'? $('quoteL'): $('quoteR')).value;
-  const tfLbl = (side==='L'? $('tfL'): $('tfR')).value;
-  const len   = +(side==='L'? $('lenL'): $('lenR')).value;
-  const symbol = (coin+quote).toUpperCase();
-  const intv   = tfMap[tfLbl];
+  const coin=(side==='L'?$('coinL').value:$('coinR').value),
+        quote=(side==='L'?$('quoteL').value:$('quoteR').value),
+        tfLbl=(side==='L'?$('tfL').value:$('tfR').value),
+        len=(side==='L'?+$('lenL').value:+$('lenR').value),
+        symbol=symbolOf(coin,quote), intv=tfMap[tfLbl];
+  const data=await fetchKlines(symbol,intv,len);
+  if(side==='L') setDataPreserveView(L.candle,L.chart,data); else setDataPreserveView(R.candle,R.chart,data);
+  updatePairHeader(side,symbol,tfLbl); const local=decideLocalAndBadges(side,data);
+  const iaOn=$('iaAuto').checked;
+  if(iaOn && data.length){
+    try{
+      const url=$('iaUrl').value.trim(); if(url){
+        const headers={'Content-Type':'application/json'}; const key=$('iaKey').value.trim(); if(key) headers['Authorization']=key;
+        const resp=await fetch(url,{method:'POST',headers,body:JSON.stringify({symbol,tf:tfLbl,ohlc:data.slice(-120),local})}).then(r=>r.json());
+        (side==='L'?$('iaBadgeL'):$('iaBadgeR')).textContent='IA: '+(resp?.advice||local.rec);
+      }else{ (side==='L'?$('iaBadgeL'):$('iaBadgeR')).textContent='IA: '+local.rec }
+    }catch{ (side==='L'?$('iaBadgeL'):$('iaBadgeR')).textContent='IA: '+local.rec }
+  }else{ (side==='L'?$('iaBadgeL'):$('iaBadgeR')).textContent='IA: '+local.rec }
+}
+async function refreshAll(){ await fetchTopQuotes(); await Promise.all([loadSide('L'),loadSide('R')]) }
+let timer=null; function setAuto(ms){ if(timer) clearInterval(timer); if(ms>0) timer=setInterval(refreshAll,ms) }
+$('autoSel').onchange=()=>setAuto(+$('autoSel').value);
+['coinL','quoteL','tfL','lenL'].forEach(id=>$(id).addEventListener('change',()=>loadSide('L')));
+['coinR','quoteR','tfR','lenR'].forEach(id=>$(id).addEventListener('change',()=>loadSide('R')));
+$('btnIaTest').onclick=async()=>{ try{ const url=$('iaUrl').value.trim(); if(!url) return toast('Informe a URL do IA');
+  const h={'Content-Type':'application/json'}; const k=$('iaKey').value.trim(); if(k) h['Authorization']=k;
+  const r=await fetch(url,{method:'POST',headers:h,body:JSON.stringify({ping:true,now:Date.now()})}).then(r=>r.json());
+  toast('IA OK: '+(r?.message||r?.advice||'sucesso')); }catch(e){ toast('Falha IA: '+e.message) } };
 
-  const data = await fetchKlines(symbol,intv,len);
-  if(side==='L') setDataPreserve(L.candle,L.chart,data); else setDataPreserve(R.candle,R.chart,data);
-  updateHeader(side,symbol,tfLbl);
+/* ===== Auth + Perfis (Firestore) ===== */
+let auth, db, userDocUnsub=null, invitesUnsub=null, isAdmin=false;
 
-  const local = decideLocal(side,data);
-  const iaCfg = getIaCfg();
-  if(iaCfg.auto && data.length){
-    try{ const r = await callIA({symbol,tf:tfLbl,tz,ohlc:data.slice(-120),local}); applyIaAdvice(side,r); }
-    catch(e){ console.warn('IA falhou',e); applyIaAdvice(side,local); }
-  } else applyIaAdvice(side,local);
+function setSessionUI(user){
+  if(user){ $('sessStatus').textContent=user.email; $('btnOpenLogin').style.display='none'; $('btnLogout').style.display=''; }
+  else{ $('sessStatus').textContent='desconectado'; $('btnOpenLogin').style.display=''; $('btnLogout').style.display='none'; $('btnAdmin').style.display='none'; isAdmin=false; }
+}
+$('btnOpenLogin').onclick=()=>{$('loginMask').style.display='flex';$('inEmail').focus()}
+$('btnCancelLogin').onclick=()=>{$('loginMask').style.display='none'}
+$('btnLogout').onclick=async()=>{ try{ await auth.signOut(); toast('Sessão encerrada'); }catch(e){ toast('Erro ao sair') } };
+$('btnDoLogin').onclick=async()=>{
+  const email=$('inEmail').value.trim(), pass=$('inPass').value;
+  if(!email||!pass){toast('Informe e-mail e senha');return}
+  try{
+    await auth.signInWithEmailAndPassword(email,pass).catch(async err=>{
+      if(err.code==='auth/user-not-found'){ await auth.createUserWithEmailAndPassword(email,pass); toast('Conta criada') }
+      else throw err;
+    });
+    $('loginMask').style.display='none';
+  }catch(e){ toast('Falha login: '+(e.message||e)) }
+};
+
+/* Admin modal */
+const adminMask=$('adminMask'), tblBody=$('tblInvites').querySelector('tbody');
+$('btnAdmin').onclick=()=>{ adminMask.style.display='flex' }
+$('btnCloseAdmin').onclick=()=>{ adminMask.style.display='none' }
+$('btnAddInvite').onclick=async()=>{
+  try{
+    const email=$('invEmail').value.trim().toLowerCase(), role=$('invRole').value;
+    if(!email) return toast('Email vazio');
+    await db.collection('invites').doc(email).set({role,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+    $('invEmail').value=''; toast('Convite adicionado');
+  }catch(e){ toast('Erro ao adicionar: '+e.message) }
+};
+function renderInvitesSnapshot(snap){
+  tblBody.innerHTML='';
+  snap.forEach(doc=>{
+    const {role}=doc.data(); const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${doc.id}</td><td>${role}</td><td><button data-id="${doc.id}" class="rm">Remover</button></td>`;
+    tblBody.appendChild(tr);
+  });
+  tblBody.querySelectorAll('button.rm').forEach(btn=>{
+    btn.onclick=async()=>{ try{ await db.collection('invites').doc(btn.dataset.id).delete(); toast('Convite removido') }catch(e){ toast('Erro: '+e.message)} }
+  });
 }
 
-async function refreshAll(){ await fetchTopQuotes(); await Promise.all([loadSide('L'),loadSide('R')]); }
-
-// ===== Controles =====
-['coinL','quoteL','tfL','lenL'].forEach(id=> $(id).addEventListener('change',()=>loadSide('L')));
-['coinR','quoteR','tfR','lenR'].forEach(id=> $(id).addEventListener('change',()=>loadSide('R')));
-$('btnIaTest').onclick = async ()=>{
-  try{ const r=await callIA({ping:true,ts:Date.now()}); alert('IA OK: '+(r.message||r.advice||'sucesso'));}catch(e){ alert('Falha IA: '+e.message); }
-};
-$('tzSel').onchange = ()=>{ tz=$('tzSel').value; refreshAll(); };
-let timer=null; const setAuto=ms=>{ if(timer)clearInterval(timer); if(ms>0) timer=setInterval(refreshAll,ms);};
-$('autoSel').onchange = ()=> setAuto(+$('autoSel').value);
-
-// ===== Auth & Firestore gates =====
-const { auth, db, onAuthStateChanged, signInWithEmailAndPassword, signOut, doc, getDoc, setDoc, updateDoc } = window._fb;
-
-function fillSelect(el, arr, selVal){
-  el.innerHTML=''; arr.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; if(v===selVal) o.selected=true; el.appendChild(o); });
+/* Bootstrap de usuário: aplica convite se existir */
+async function bootstrapUser(user){
+  const uid=user.uid, email=user.email.toLowerCase();
+  const userRef=db.collection('users').doc(uid);
+  const doc=await userRef.get();
+  if(!doc.exists){
+    // tenta convite
+    const inv=await db.collection('invites').doc(email).get();
+    const role=inv.exists ? (inv.data().role||'user') : 'user';
+    await userRef.set({email,role,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+    if(inv.exists){ await inv.ref.delete() }
+  }
 }
 
-async function applyPermissions(uid){
-  const ref = doc(db,'users',uid);
-  const snap= await getDoc(ref);
-  if(!snap.exists()){
-    $('gates').className='chip danger';
-    $('gates').textContent='Acesso negado: usuário sem permissão cadastrada.';
-    $('panel').classList.add('hide');
-    return;
-  }
-  userDoc = snap.data(); // { email, role, allowed: {features, pairs, tfs} }
-  const isAdmin = userDoc.role==='admin';
-  $('adminBox').classList.toggle('hide', !isAdmin);
+/* Observadores */
+async function startAuth(){
+  await waitForFirebase(); auth=window._fb.auth; db=window._fb.db;
 
-  // features, pares e tfs do usuário
-  FEATURES = Object.assign({st:false,mkr:false,ia:false}, (userDoc.allowed?.features||{}));
-  ALLOWED_PAIRS = (userDoc.allowed?.pairs && userDoc.allowed.pairs.length)? userDoc.allowed.pairs : defaultPairs;
-  ALLOWED_TFS   = (userDoc.allowed?.tfs && userDoc.allowed.tfs.length)? userDoc.allowed.tfs : ["3m","5m","15m","30m","1h","1d","1mo"];
-
-  // Preenche selects conforme permissões
-  fillSelect($('coinL'), ALLOWED_PAIRS, 'BTC');
-  fillSelect($('coinR'), ALLOWED_PAIRS, 'BTC');
-  fillSelect($('tfL'),   ALLOWED_TFS,   '3m');
-  fillSelect($('tfR'),   ALLOWED_TFS,   '3m');
-
-  $('gates').className='chip success';
-  $('gates').textContent='Acesso concedido.';
-  $('panel').classList.remove('hide');
-
-  await refreshAll();
-  setAuto(+$('autoSel').value);
+  auth.onAuthStateChanged(async (user)=>{
+    setSessionUI(user);
+    if(user){
+      await bootstrapUser(user);
+      // observa seu doc para saber se é admin
+      userDocUnsub && userDocUnsub(); invitesUnsub && invitesUnsub();
+      userDocUnsub = db.collection('users').doc(user.uid).onSnapshot(s=>{
+        const role = s.exists ? (s.data().role||'user') : 'user';
+        isAdmin = role==='admin';
+        $('btnAdmin').style.display = isAdmin ? '' : 'none';
+        // carrega lista de convites quando admin abre/está logado
+        if(isAdmin){
+          invitesUnsub = db.collection('invites').orderBy('createdAt','desc').onSnapshot(renderInvitesSnapshot);
+        }else{
+          invitesUnsub && invitesUnsub(); invitesUnsub=null; tblBody.innerHTML='';
+        }
+      });
+    }else{
+      userDocUnsub && userDocUnsub(); userDocUnsub=null;
+      invitesUnsub && invitesUnsub(); invitesUnsub=null;
+      tblBody.innerHTML='';
+    }
+  });
 }
 
-// Login modal
-$('btnLogin').onclick = ()=> $('loginModal').classList.remove('hide');
-$('loginCancel').onclick = ()=> $('loginModal').classList.add('hide');
-$('loginGo').onclick = async ()=>{
-  $('loginMsg').textContent='Entrando…';
-  try{
-    const email=$('loginEmail').value.trim(), pass=$('loginPass').value;
-    const cred = await signInWithEmailAndPassword(auth,email,pass);
-    $('loginMsg').textContent='OK!';
-    $('loginModal').classList.add('hide');
-  }catch(e){
-    $('loginMsg').textContent='Erro: '+e.message;
-  }
-};
-$('btnLogout').onclick = ()=> signOut(auth);
-
-// Admin ações
-$('btnInvite').onclick = async ()=>{
-  try{
-    const email = $('invEmail').value.trim().toLowerCase();
-    const plan  = $('invPlan').value;
-    if(!email) return alert('Informe o e-mail');
-    await setDoc(doc(db,'invites',email),{
-      email, plan, at: Date.now()
-    }, {merge:true});
-    alert('Convite registrado p/ '+email);
-  }catch(e){ alert('Falha convite: '+e.message); }
-};
-$('btnGrantPerm').onclick = async ()=>{
-  try{
-    const uid = $('permUid').value.trim();
-    if(!uid) return alert('Cole o UID');
-    await setDoc(doc(db,'users',uid),{
-      role:'user',
-      allowed:{
-        features:{st:true,mkr:true,ia:true},
-        pairs: defaultPairs,
-        tfs: ["1m","3m","5m","15m","30m","1h","1d","1mo"]
-      }
-    }, {merge:true});
-    alert('Permissões aplicadas ao UID '+uid);
-  }catch(e){ alert('Falha ao aplicar: '+e.message); }
-};
-
-// Auth listener
-onAuthStateChanged(auth, async (user)=>{
-  if(user){
-    $('authStatus').innerHTML='Sessão: <b>'+ (user.email||user.uid) +'</b>';
-    $('btnLogin').classList.add('hide');
-    $('btnLogout').classList.remove('hide');
-    $('gates').className='chip'; $('gates').textContent='Validando permissões…';
-    await applyPermissions(user.uid);
-  }else{
-    $('authStatus').innerHTML='Sessão: <b>desconectado</b>';
-    $('btnLogin').classList.remove('hide');
-    $('btnLogout').classList.add('hide');
-    $('panel').classList.add('hide');
-    $('gates').className='chip danger';
-    $('gates').textContent='Faça login para ver o painel.';
-  }
-});
-
-// Start
+/* ===== Start ===== */
 (async ()=>{
-  // Defaults
-  $('iaAuto').checked=false;
-  await fetchTopQuotes();
+  await waitForFirebase();
+  // presets
+  $('coinL').value='BTC';$('quoteL').value='BRL';$('tfL').value='3M';$('lenL').value='360';
+  $('coinR').value='BTC';$('quoteR').value='USDT';$('tfR').value='3M';$('lenR').value='360';
+  await refreshAll(); setAuto(+$('autoSel').value);
+  startAuth();
 })();
 </script>
+
+<!--
+==== Regras Firestore sugeridas (cole no Console, aba Rules) ====
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    // cada usuário lê seu próprio doc
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if isAdmin();
+    }
+    // convites: admin gerencia; leitura aberta para ver se convite existe
+    match /invites/{email} {
+      allow read: if request.auth != null;   // opcional: pode deixar só admin ler
+      allow write, delete: if isAdmin();
+    }
+    function isAdmin() {
+      return request.auth != null
+        && exists(/databases/$(db)/documents/users/$(request.auth.uid))
+        && get(/databases/$(db)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+  }
+}
+-->
 </body>
 </html>
