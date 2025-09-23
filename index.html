@@ -38,7 +38,7 @@
 
   /* Modais */
   .mask{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:20}
-  .modal{width:520px;max-width:92vw;background:var(--panel);border:1px solid #1f2a40;border-radius:14px;padding:16px}
+  .modal{width:720px;max-width:92vw;background:var(--panel);border:1px solid #1f2a40;border-radius:14px;padding:16px}
   .modal h3{margin:0 0 10px 0}
   .vstack{display:flex;flex-direction:column;gap:8px}
   .hint{font-size:12px;color:#9aa8bf}
@@ -46,6 +46,7 @@
   table{width:100%;border-collapse:collapse;font-size:14px}
   th,td{border:1px solid #1f2a40;padding:6px 8px}
   th{background:#0b1425}
+  #tblUsers td select { background:#0b1220; color:var(--text); border:1px solid #2c3a52; border-radius:8px; padding:3px 6px }
 </style>
 
 <!-- ================== Charts ================== -->
@@ -58,7 +59,7 @@
 
 <!-- ================== Firebase init ================== -->
 <script>
-  // Seu config
+  // Config do seu projeto Firebase
   const firebaseConfig = {
     apiKey: "AIzaSyAN70DLpn18XA11_JwjtkodpaOjquKEs3U",
     authDomain: "painel-cripto-pro.firebaseapp.com",
@@ -111,6 +112,27 @@
             <option value="15000">15s</option>
           </select>
         </label>
+        <label class="chip">Fuso
+          <select id="tzSel">
+            <option value="America/Sao_Paulo" selected>America/Sao_Paulo (BR)</option>
+            <option value="UTC">UTC</option>
+            <option value="America/Bogota">America/Bogota</option>
+            <option value="America/Mexico_City">America/Mexico_City</option>
+            <option value="America/New_York">America/New_York</option>
+            <option value="America/Los_Angeles">America/Los_Angeles</option>
+            <option value="Europe/Lisbon">Europe/Lisbon</option>
+            <option value="Europe/London">Europe/London</option>
+            <option value="Europe/Madrid">Europe/Madrid</option>
+            <option value="Europe/Berlin">Europe/Berlin</option>
+            <option value="Africa/Johannesburg">Africa/Johannesburg</option>
+            <option value="Asia/Dubai">Asia/Dubai</option>
+            <option value="Asia/Kolkata">Asia/Kolkata</option>
+            <option value="Asia/Shanghai">Asia/Shanghai</option>
+            <option value="Asia/Tokyo">Asia/Tokyo</option>
+            <option value="Australia/Sydney">Australia/Sydney</option>
+            <option value="Pacific/Auckland">Pacific/Auckland</option>
+          </select>
+        </label>
         <label class="chip">IA Webhook
           <input id="iaUrl" placeholder="https://seu-endpoint-ia/exec">
         </label>
@@ -136,7 +158,17 @@
         <div class="row"><span id="pairTitleL" class="title">—</span></div>
         <div class="row">
           <label class="chip">Moeda
-            <select id="coinL"><option selected>BTC</option><option>ETH</option></select>
+            <select id="coinL">
+              <option selected>BTC</option>
+              <option>ETH</option>
+              <option>SOL</option>
+              <option>BNB</option>
+              <option>XRP</option>
+              <option>ADA</option>
+              <option>DOGE</option>
+              <option>TON</option>
+              <option>DOT</option>
+            </select>
           </label>
           <label class="chip">Contra
             <select id="quoteL"><option>BRL</option><option selected>USDT</option></select>
@@ -172,7 +204,17 @@
         <div class="row"><span id="pairTitleR" class="title">—</span></div>
         <div class="row">
           <label class="chip">Moeda
-            <select id="coinR"><option selected>BTC</option><option>ETH</option></select>
+            <select id="coinR">
+              <option selected>BTC</option>
+              <option>ETH</option>
+              <option>SOL</option>
+              <option>BNB</option>
+              <option>XRP</option>
+              <option>ADA</option>
+              <option>DOGE</option>
+              <option>TON</option>
+              <option>DOT</option>
+            </select>
           </label>
           <label class="chip">Contra
             <select id="quoteR"><option>BRL</option><option selected>USDT</option></select>
@@ -222,25 +264,44 @@
   </div>
 </div>
 
-<!-- ===== Modal Admin (convites) ===== -->
+<!-- ===== Modal Admin (convites & usuários) ===== -->
 <div class="mask" id="adminMask">
   <div class="modal">
-    <h3>Admin — Convites</h3>
-    <div class="vstack" style="margin-bottom:8px">
-      <div class="row" style="flex-wrap:wrap">
-        <input id="invEmail" placeholder="email do usuário">
-        <select id="invRole">
-          <option value="user" selected>user</option>
-          <option value="admin">admin</option>
-        </select>
-        <button id="btnAddInvite">Adicionar convite</button>
-      </div>
-      <p class="hint">Usuários convidados: ao fazer login, recebem o papel do convite.</p>
+    <h3>Admin — Convites & Usuários</h3>
+
+    <!-- Tabs -->
+    <div class="row" style="margin:8px 0">
+      <button id="tabInvites" class="chip" style="cursor:pointer">Convites</button>
+      <button id="tabUsers" class="chip" style="cursor:pointer">Usuários</button>
     </div>
-    <table id="tblInvites">
-      <thead><tr><th>Email</th><th>Papel</th><th>Ações</th></tr></thead>
-      <tbody></tbody>
-    </table>
+
+    <!-- Pane Convites -->
+    <div id="invitesPane">
+      <div class="vstack" style="margin-bottom:8px">
+        <div class="row" style="flex-wrap:wrap">
+          <input id="invEmail" placeholder="email do usuário">
+          <select id="invRole">
+            <option value="user" selected>user</option>
+            <option value="admin">admin</option>
+          </select>
+          <button id="btnAddInvite">Adicionar convite</button>
+        </div>
+        <p class="hint">Usuários convidados: ao fazer login, recebem o papel do convite (se ainda não tiverem um perfil).</p>
+      </div>
+      <table id="tblInvites">
+        <thead><tr><th>Email</th><th>Papel</th><th>Ações</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Pane Usuários -->
+    <div id="usersPane" style="display:none">
+      <table id="tblUsers">
+        <thead><tr><th>Email</th><th>Papel</th><th>Ações</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
     <div class="row" style="justify-content:flex-end;margin-top:10px">
       <button id="btnCloseAdmin">Fechar</button>
     </div>
@@ -254,7 +315,30 @@
 /* ===== Helpers ===== */
 const $ = id => document.getElementById(id);
 const fmtNum = (n,d=2)=>Number.isFinite(n)?n.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}):'—';
-function toast(msg,ms=2500){const t=$('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',ms);}
+function toast(msg,ms=2500){const t=$('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',ms);} 
+
+/* ===== Fuso / Perfil ===== */
+let currentTZ = 'America/Sao_Paulo';
+function fmtWithTZ(dateOrMs, tz=currentTZ){
+  const d = (dateOrMs instanceof Date)? dateOrMs : new Date(dateOrMs);
+  return new Intl.DateTimeFormat('pt-BR', { timeZone: tz, dateStyle: 'short', timeStyle: 'medium' }).format(d);
+}
+function updateLastTs(){ $('lastTs').textContent = 'Atualizado: ' + fmtWithTZ(Date.now(), currentTZ); }
+
+async function loadUserProfile(uid){
+  const s = await db.collection('users').doc(uid).get();
+  const p = s.exists ? (s.data().profile || {}) : {};
+  currentTZ = p.tz || 'America/Sao_Paulo';
+  if($('tzSel')) $('tzSel').value = currentTZ;
+}
+async function saveUserProfile(uid, partial){
+  const ref = db.collection('users').doc(uid);
+  await ref.set({ profile: partial }, { merge: true });
+}
+$('tzSel').onchange = async ()=>{
+  currentTZ = $('tzSel').value; updateLastTs();
+  const u = auth?.currentUser; if(u){ await saveUserProfile(u.uid, { tz: currentTZ }); }
+};
 
 /* ===== Binance + Indicadores ===== */
 const tfMap={ '1M':'1m','3M':'3m','5M':'5m','15M':'15m','30M':'30m','1H':'1h','1D':'1d','1MO':'1M' };
@@ -270,7 +354,7 @@ async function fetchTopQuotes(){
     $('q_btcusdt').textContent=fmtNum(+pU.price,2)+' USDT';
     $('q_btcbrl').textContent=(+pB.price).toLocaleString('pt-BR');
     $('q_usdbrl').textContent=Number.isFinite(+usdt.price)?fmtNum(+usdt.price,2):'—';
-    $('lastTs').textContent='Atualizado: '+new Date().toLocaleString('pt-BR');
+    updateLastTs();
   }catch{ $('lastTs').textContent='Atualizado: erro'; }
 }
 async function fetchKlines(symbol, interval, limit=360){
@@ -375,7 +459,7 @@ async function loadSide(side){
     try{
       const url=$('iaUrl').value.trim(); if(url){
         const headers={'Content-Type':'application/json'}; const key=$('iaKey').value.trim(); if(key) headers['Authorization']=key;
-        const resp=await fetch(url,{method:'POST',headers,body:JSON.stringify({symbol,tf:tfLbl,ohlc:data.slice(-120),local})}).then(r=>r.json());
+        const resp=await fetch(url,{method:'POST',headers,body:JSON.stringify({symbol,tf:tfLbl,ohlc:data.slice(-120),local,tz:currentTZ})}).then(r=>r.json());
         (side==='L'?$('iaBadgeL'):$('iaBadgeR')).textContent='IA: '+(resp?.advice||local.rec);
       }else{ (side==='L'?$('iaBadgeL'):$('iaBadgeR')).textContent='IA: '+local.rec }
     }catch{ (side==='L'?$('iaBadgeL'):$('iaBadgeR')).textContent='IA: '+local.rec }
@@ -388,11 +472,14 @@ $('autoSel').onchange=()=>setAuto(+$('autoSel').value);
 ['coinR','quoteR','tfR','lenR'].forEach(id=>$(id).addEventListener('change',()=>loadSide('R')));
 $('btnIaTest').onclick=async()=>{ try{ const url=$('iaUrl').value.trim(); if(!url) return toast('Informe a URL do IA');
   const h={'Content-Type':'application/json'}; const k=$('iaKey').value.trim(); if(k) h['Authorization']=k;
-  const r=await fetch(url,{method:'POST',headers:h,body:JSON.stringify({ping:true,now:Date.now()})}).then(r=>r.json());
+  const r=await fetch(url,{method:'POST',headers:h,body:JSON.stringify({ping:true,now:Date.now(),tz:currentTZ})}).then(r=>r.json());
   toast('IA OK: '+(r?.message||r?.advice||'sucesso')); }catch(e){ toast('Falha IA: '+e.message) } };
 
 /* ===== Auth + Perfis (Firestore) ===== */
-let auth, db, userDocUnsub=null, invitesUnsub=null, isAdmin=false;
+let auth, db, userDocUnsub=null, invitesUnsub=null, usersUnsub=null, isAdmin=false;
+
+// Semente (emails que SEMPRE são admin)
+const ADMIN_EMAILS = [ 'mjcsvieira@gmail.com' ];
 
 function setSessionUI(user){
   if(user){ $('sessStatus').textContent=user.email; $('btnOpenLogin').style.display='none'; $('btnLogout').style.display=''; }
@@ -423,6 +510,16 @@ $('btnAddInvite').onclick=async()=>{
     if(!email) return toast('Email vazio');
     await db.collection('invites').doc(email).set({role,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
     $('invEmail').value=''; toast('Convite adicionado');
+
+    // tenta aplicar direto se o usuário já existe
+    try{
+      const q = await db.collection('users').where('email','==',email).limit(1).get();
+      if(!q.empty){
+        const uid = q.docs[0].id;
+        await db.collection('users').doc(uid).set({ role }, { merge:true });
+        toast('Convite aplicado ao usuário existente');
+      }
+    }catch(_){/* silencioso */}
   }catch(e){ toast('Erro ao adicionar: '+e.message) }
 };
 function renderInvitesSnapshot(snap){
@@ -451,7 +548,44 @@ async function bootstrapUser(user){
   }
 }
 
-/* Observadores */
+// ===== Aba Usuários (admin) =====
+const usersPane = $('usersPane'), invitesPane = $('invitesPane');
+$('tabInvites').onclick = ()=>{ invitesPane.style.display=''; usersPane.style.display='none'; };
+$('tabUsers').onclick   = ()=>{ invitesPane.style.display='none'; usersPane.style.display=''; };
+const usersTBody = $('tblUsers').querySelector('tbody');
+function renderUsersSnapshot(snap){
+  usersTBody.innerHTML = '';
+  snap.forEach(doc=>{
+    const d = doc.data() || {};
+    const email = d.email || '(sem email)';
+    const role  = d.role  || 'user';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${email}</td>
+      <td>
+        <select data-uid="${doc.id}" class="roleSel">
+          <option value="user" ${role==='user'?'selected':''}>user</option>
+          <option value="admin" ${role==='admin'?'selected':''}>admin</option>
+        </select>
+      </td>
+      <td>
+        <button class="btnApply" data-uid="${doc.id}">Aplicar</button>
+      </td>`;
+    usersTBody.appendChild(tr);
+  });
+  usersTBody.querySelectorAll('.btnApply').forEach(btn=>{
+    btn.onclick = async ()=>{
+      try{
+        const uid = btn.dataset.uid;
+        const sel = usersTBody.querySelector(`select.roleSel[data-uid="${uid}"]`);
+        const role = sel.value;
+        await db.collection('users').doc(uid).set({ role }, { merge:true });
+        toast('Papel atualizado');
+      }catch(e){ toast('Erro: '+e.message); }
+    };
+  });
+}
+
 async function startAuth(){
   await waitForFirebase(); auth=window._fb.auth; db=window._fb.db;
 
@@ -459,23 +593,30 @@ async function startAuth(){
     setSessionUI(user);
     if(user){
       await bootstrapUser(user);
-      // observa seu doc para saber se é admin
-      userDocUnsub && userDocUnsub(); invitesUnsub && invitesUnsub();
+      await loadUserProfile(user.uid);
+
+      // observa seu doc p/ saber se é admin (respeita semente)
+      userDocUnsub && userDocUnsub(); invitesUnsub && invitesUnsub(); usersUnsub && usersUnsub();
       userDocUnsub = db.collection('users').doc(user.uid).onSnapshot(s=>{
-        const role = s.exists ? (s.data().role||'user') : 'user';
-        isAdmin = role==='admin';
+        const storedRole = s.exists ? (s.data().role||'user') : 'user';
+        const seeded = ADMIN_EMAILS.includes((user.email||'').toLowerCase());
+        isAdmin = seeded || storedRole==='admin';
         $('btnAdmin').style.display = isAdmin ? '' : 'none';
-        // carrega lista de convites quando admin abre/está logado
+
+        // admin: observar convites e usuários
+        invitesUnsub && invitesUnsub(); usersUnsub && usersUnsub();
         if(isAdmin){
           invitesUnsub = db.collection('invites').orderBy('createdAt','desc').onSnapshot(renderInvitesSnapshot);
+          usersUnsub   = db.collection('users').orderBy('createdAt','desc').onSnapshot(renderUsersSnapshot);
         }else{
-          invitesUnsub && invitesUnsub(); invitesUnsub=null; tblBody.innerHTML='';
+          tblBody.innerHTML=''; usersTBody.innerHTML='';
         }
       });
     }else{
       userDocUnsub && userDocUnsub(); userDocUnsub=null;
       invitesUnsub && invitesUnsub(); invitesUnsub=null;
-      tblBody.innerHTML='';
+      usersUnsub && usersUnsub(); usersUnsub=null;
+      tblBody.innerHTML=''; usersTBody.innerHTML='';
     }
   });
 }
@@ -497,20 +638,22 @@ async function startAuth(){
 rules_version = '2';
 service cloud.firestore {
   match /databases/{db}/documents {
-    // cada usuário lê seu próprio doc
-    match /users/{uid} {
-      allow read: if request.auth != null && request.auth.uid == uid;
-      allow write: if isAdmin();
-    }
-    // convites: admin gerencia; leitura aberta para ver se convite existe
-    match /invites/{email} {
-      allow read: if request.auth != null;   // opcional: pode deixar só admin ler
-      allow write, delete: if isAdmin();
-    }
     function isAdmin() {
       return request.auth != null
         && exists(/databases/$(db)/documents/users/$(request.auth.uid))
         && get(/databases/$(db)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // users: o próprio lê; admin pode ler/escrever qualquer
+    match /users/{uid} {
+      allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // invites: admin gerencia; leitura opcional para logados
+    match /invites/{email} {
+      allow read: if request.auth != null;
+      allow write, delete: if isAdmin();
     }
   }
 }
