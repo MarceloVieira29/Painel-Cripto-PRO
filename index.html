@@ -352,75 +352,17 @@ const $ = id => document.getElementById(id);
 const fmtNum = (n,d=2)=>Number.isFinite(n)?n.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}):'—';
 function toast(msg,ms=2500){const t=$('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',ms);} 
 
-/* ===== JSONP util (fallback IA) ===== */
-function jsonp(url, params={}, cbField='callback'){
-  return new Promise((resolve, reject)=>{
-    const cbName = 'iaCB_' + Math.random().toString(36).slice(2);
-    const s = document.createElement('script');
-    const usp = new URLSearchParams(params);
-    usp.set(cbField, cbName);
-    const sep = url.includes('?') ? '&' : '?';
-    s.src = url + sep + usp.toString();
-
-    let finished = false;
-    window[cbName] = (data)=>{ finished=true; cleanup(); resolve(data); };
-    s.onerror = ()=>{ cleanup(); reject(new Error('Erro ao carregar JSONP')); };
-    document.head.appendChild(s);
-
-    function cleanup(){ try{ document.head.removeChild(s); }catch(_){} try{ delete window[cbName]; }catch(_){} }
-    setTimeout(()=>{ if(!finished){ cleanup(); reject(new Error('Timeout JSONP')); } }, 10000);
-  });
-}
-
-/* ===== Fuso / Perfil / Permissões ===== */
+/* ===== Timezone helpers (aplicado também no eixo do gráfico) ===== */
 let currentTZ = 'America/Sao_Paulo';
-let currentPerm = { canIA:false, canChangeTZ:false, canChangePairs:false, canChangeAuto:false };
-function fmtWithTZ(dateOrMs, tz=currentTZ){
-  const d = (dateOrMs instanceof Date)? dateOrMs : new Date(dateOrMs);
-  return new Intl.DateTimeFormat('pt-BR', { timeZone: tz, dateStyle: 'short', timeStyle: 'medium' }).format(d);
+function makeTimeFormatters(tz){
+  const fmtTime = new Intl.DateTimeFormat('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:tz});
+  const fmtDay  = new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'2-digit',timeZone:tz});
+  const fmtFull = new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:tz});
+  const timeFormatter = (time)=>{ const ts=(time&&time.timestamp)||time; return fmtFull.format(new Date(ts*1000)); };
+  const tickMarkFormatter = (time, tickType)=>{ const ts=(time&&time.timestamp)||time; return tickType<=1? fmtDay.format(new Date(ts*1000)) : fmtTime.format(new Date(ts*1000)); };
+  return { timeFormatter, tickMarkFormatter };
 }
-function updateLastTs(){ $('lastTs').textContent = 'Atualizado: ' + fmtWithTZ(Date.now(), currentTZ); }
-
-async function loadUserProfile(uid){
-  const s = await db.collection('users').doc(uid).get();
-  const d = s.exists ? s.data() : {};
-  const p = d.profile || {};
-  const perm = d.permissions || {};
-  currentTZ = p.tz || 'America/Sao_Paulo';
-  currentPerm = {
-    canIA: !!perm.canIA,
-    canChangeTZ: !!perm.canChangeTZ,
-    canChangePairs: !!perm.canChangePairs,
-    canChangeAuto: !!perm.canChangeAuto,
-  };
-  if($('tzSel')) $('tzSel').value = currentTZ;
-  applyPermissions();
-}
-async function saveUserProfile(uid, partial){
-  const ref = db.collection('users').doc(uid);
-  await ref.set({ profile: partial }, { merge: true });
-}
-function applyPermissions(){
-  const isDisabled = (flag)=> (!isAdmin && !currentPerm[flag]);
-  // IA controls
-  $('iaUrl').disabled = isDisabled('canIA');
-  $('iaKey').disabled = isDisabled('canIA');
-  $('iaAuto').disabled= isDisabled('canIA');
-  $('btnIaTest').classList.toggle('disabled', isDisabled('canIA'));
-  // Timezone
-  $('tzSel').disabled = isDisabled('canChangeTZ');
-  // Pairs / TF / Len
-  ['coinL','quoteL','tfL','lenL','coinR','quoteR','tfR','lenR'].forEach(id=>{
-    const el=$(id); if(!el) return; el.disabled = isDisabled('canChangePairs');
-  });
-  // Auto refresh
-  $('autoSel').disabled = isDisabled('canChangeAuto');
-}
-$('tzSel').onchange = async ()=>{
-  const v = $('tzSel').value; if($('tzSel').disabled){ $('tzSel').value = currentTZ; return; }
-  currentTZ = v; updateLastTs();
-  const u = auth?.currentUser; if(u){ await saveUserProfile(u.uid, { tz: currentTZ }); }
-};
+function updateLastTs(){ $('lastTs').textContent='Atualizado: '+ new Intl.DateTimeFormat('pt-BR',{dateStyle:'short',timeStyle:'medium',timeZone:currentTZ}).format(new Date()); }
 
 /* ===== Binance + Indicadores ===== */
 const tfMap={ '1M':'1m','3M':'3m','5M':'5m','15M':'15m','30M':'30m','1H':'1h','1D':'1d','1MO':'1M' };
@@ -473,19 +415,28 @@ function mkrSmooth(arr,bw=14,dev=2){
   const slope=(n>1&&Number.isFinite(mean[n-1])&&Number.isFinite(mean[n-2]))?(mean[n-1]-mean[n-2]):0;
   return {mean,up,dn,slope,delta:slope}
 }
+
+/* ===== Charts ===== */
 function mkChart(id){
   const el=$(id);
+  const { timeFormatter, tickMarkFormatter } = makeTimeFormatters(currentTZ);
   const chart=LightweightCharts.createChart(el,{layout:{background:{color:'#0e1627'},textColor:'#cbd5e1'},
     grid:{vertLines:{color:'#1f2a40'},horzLines:{color:'#1f2a40'}},rightPriceScale:{borderColor:'#1f2a40'},
-    timeScale:{borderColor:'#1f2a40',timeVisible:true,secondsVisible:false},crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
+    timeScale:{borderColor:'#1f2a40',timeVisible:true,secondsVisible:false,tickMarkFormatter},crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
     handleScroll:{mouseWheel:true,pressedMouseMove:true},handleScale:{axisPressedMouseMove:true,mouseWheel:true,pinch:true},
-    localization:{locale:'pt-BR'}});
+    localization:{locale:'pt-BR', timeFormatter}});
   const candle=chart.addCandlestickSeries({upColor:'#16a34a',downColor:'#ef4444',borderVisible:false,wickUpColor:'#16a34a',wickDownColor:'#ef4444'});
   chart.timeScale().applyOptions({rightOffset:5,barSpacing:3});
   new ResizeObserver(()=>{const r=el.getBoundingClientRect();chart.resize(Math.floor(r.width),Math.floor(r.height))}).observe(el);
   return {chart,candle}
 }
+function reapplyTimezone(chart){
+  const { timeFormatter, tickMarkFormatter } = makeTimeFormatters(currentTZ);
+  chart.applyOptions({ localization:{locale:'pt-BR', timeFormatter}, timeScale:{ tickMarkFormatter } });
+}
 const L=mkChart('chartL'), R=mkChart('chartR');
+reapplyTimezone(L.chart); reapplyTimezone(R.chart);
+
 function setDataPreserveView(series,chart,data){
   const ts=chart.timeScale(), atRight=Math.abs(ts.scrollPosition())<1e-2, vr=ts.getVisibleLogicalRange();
   series.setData(data); if(!atRight && vr){ ts.setVisibleLogicalRange(vr) } else { ts.scrollToRealTime() }
@@ -527,59 +478,25 @@ function decideLocalAndBadges(side,data){
     setBadge($('stBadgeR'),stText,stCls); setBadge($('mkrBadgeR'),mkrText,mkrCls); setBadge($('atrBadgeR'),`ATR: ${fmtNum(atr,2)}`,'b-blue')}
   return {tend:tendencia,rec}
 }
-async function loadSide(side){
-  const coin=(side==='L'?$('coinL').value:$('coinR').value),
-        quote=(side==='L'?$('quoteL').value:$('quoteR').value),
-        tfLbl=(side==='L'?$('tfL').value:$('tfR').value),
-        len=(side==='L'?+$('lenL').value:+$('lenR').value),
-        symbol=symbolOf(coin,quote), intv=tfMap[tfLbl];
-  const data=await fetchKlines(symbol,intv,len);
-  if(side==='L') setDataPreserveView(L.candle,L.chart,data); else setDataPreserveView(R.candle,R.chart,data);
-  updatePairHeader(side,symbol,tfLbl); const local=decideLocalAndBadges(side,data);
 
-  // IA: só se permitido
-  if((isAdmin || currentPerm.canIA) && data.length && $('iaAuto').checked && !$('iaAuto').disabled){
-    try{
-      const payload={symbol,tf:tfLbl,ohlc:data.slice(-120),local,tz:currentTZ};
-      const res = await callIaWebhook(payload);
-      (side==='L'?$('iaBadgeL'):$('iaBadgeR')).textContent='IA: '+(res?.advice||local.rec);
-    }catch{ (side==='L'?$('iaBadgeL'):$('iaBadgeR')).textContent='IA: '+local.rec }
-  }else{
-    (side==='L'?$('iaBadgeL'):$('iaBadgeR')).textContent='IA: '+local.rec
-  }
-}
-async function refreshAll(){ await fetchTopQuotes(); await Promise.all([loadSide('L'),loadSide('R')]) }
-let timer=null; function setAuto(ms){ if(timer) clearInterval(timer); if(ms>0) timer=setInterval(refreshAll,ms) }
-$('autoSel').onchange=()=>{ if($('autoSel').disabled) return; setAuto(+$('autoSel').value) };
-['coinL','quoteL','tfL','lenL'].forEach(id=>$(id).addEventListener('change',()=>{ if($(id).disabled) return; loadSide('L') }));
-['coinR','quoteR','tfR','lenR'].forEach(id=>$(id).addEventListener('change',()=>{ if($(id).disabled) return; loadSide('R') }));
-$('btnIaTest').onclick=async()=>{ if($('btnIaTest').classList.contains('disabled')) return; try{ const ok=await testIa(); toast('IA OK: '+ok) }catch(e){ toast('Falha IA: '+e.message) } };
-
-/* ===== IA (POST com fallback JSONP) ===== */
+/* ===== IA (JSON puro via POST) ===== */
 function getIaConfig(){ return { url: $('iaUrl').value.trim(), key: $('iaKey').value.trim() } }
 async function callIaWebhook(payload){
   const { url, key } = getIaConfig(); if(!url) throw new Error('IA URL vazia');
-  // 1) tenta POST JSON
-  try{
-    const headers={'Content-Type':'application/json'}; if(key) headers['Authorization']=key;
-    const r=await fetch(url,{method:'POST',headers,body:JSON.stringify(payload)});
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    const j=await r.json(); if(j && (j.ok===true || j.advice)) return j; throw new Error('Resposta inválida');
-  }catch(_){ /* fallback JSONP */ }
-  // 2) fallback JSONP via ?q=base64
-  const compact={symbol:payload.symbol,tf:payload.tf,tz:payload.tz,local:payload.local,last:(payload.ohlc||[]).slice(-120)};
-  const q=btoa(JSON.stringify(compact));
-  const params={ q }; if(key) params.key=key;
-  const j = await jsonp(url, params);
-  if(j && (j.ok===true || j.advice)) return j;
-  throw new Error('Falha na IA');
+  const headers={'Content-Type':'application/json'}; if(key) headers['Authorization']=key;
+  const r = await fetch(url,{method:'POST',headers,body:JSON.stringify(payload)});
+  let j = null; try{ j = await r.json(); }catch(_){}
+  if(!r.ok) throw new Error(j?.error || ('HTTP '+r.status));
+  if(!(j && (j.ok===true || j.advice))) throw new Error('Resposta inválida');
+  return j;
 }
 async function testIa(){
   const { url, key } = getIaConfig(); if(!url) throw new Error('Configure a URL da IA');
-  try{ const j=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json', ...(key?{Authorization:key}:{})},body:JSON.stringify({ping:true,now:Date.now()})});
-       if(j.ok){ const x=await j.json(); return x.message||x.advice||'sucesso (POST)'; }
-       throw new Error('HTTP '+j.status);
-  }catch{ const j=await jsonp(url,{sample:1, key}); return (j&& (j.message||j.advice||'sucesso (JSONP)')) }
+  const headers={'Content-Type':'application/json'}; if(key) headers['Authorization']=key;
+  const r = await fetch(url,{method:'POST',headers,body:JSON.stringify({ping:true,now:Date.now()})});
+  let j=null; try{ j=await r.json(); }catch(_){ }
+  if(!r.ok) throw new Error(j?.error||('HTTP '+r.status));
+  return j?.message||j?.advice||'sucesso';
 }
 
 /* ===== Auth + Perfis (Firestore) ===== */
@@ -588,23 +505,41 @@ let auth, db, userDocUnsub=null, invitesUnsub=null, usersUnsub=null, isAdmin=fal
 // Semente (emails que SEMPRE são admin)
 const ADMIN_EMAILS = [ 'mjcsvieira@gmail.com' ];
 
+let currentPerm = { canIA:false, canChangeTZ:false, canChangePairs:false, canChangeAuto:false };
+
 function setSessionUI(user){
   if(user){ $('sessStatus').textContent=user.email; $('btnOpenLogin').style.display='none'; $('btnLogout').style.display=''; }
   else{ $('sessStatus').textContent='desconectado'; $('btnOpenLogin').style.display=''; $('btnLogout').style.display='none'; $('btnAdmin').style.display='none'; isAdmin=false; }
 }
-$('btnOpenLogin').onclick=()=>{$('loginMask').style.display='flex';$('inEmail').focus()}
-$('btnCancelLogin').onclick=()=>{$('loginMask').style.display='none'}
-$('btnLogout').onclick=async()=>{ try{ await auth.signOut(); toast('Sessão encerrada'); }catch(e){ toast('Erro ao sair') } };
-$('btnDoLogin').onclick=async()=>{
-  const email=$('inEmail').value.trim(), pass=$('inPass').value;
-  if(!email||!pass){toast('Informe e-mail e senha');return}
-  try{
-    await auth.signInWithEmailAndPassword(email,pass).catch(async err=>{
-      if(err.code==='auth/user-not-found'){ await auth.createUserWithEmailAndPassword(email,pass); toast('Conta criada') }
-      else throw err;
-    });
-    $('loginMask').style.display='none';
-  }catch(e){ toast('Falha login: '+(e.message||e)) }
+function applyPermissions(){
+  const isDisabled = (flag)=> (!isAdmin && !currentPerm[flag]);
+  // IA controls
+  $('iaUrl').disabled = isDisabled('canIA');
+  $('iaKey').disabled = isDisabled('canIA');
+  $('iaAuto').disabled= isDisabled('canIA');
+  $('btnIaTest').classList.toggle('disabled', isDisabled('canIA'));
+  // Timezone
+  $('tzSel').disabled = isDisabled('canChangeTZ');
+  // Pairs / TF / Len
+  ['coinL','quoteL','tfL','lenL','coinR','quoteR','tfR','lenR'].forEach(id=>{ const el=$(id); if(el) el.disabled = isDisabled('canChangePairs'); });
+  // Auto refresh
+  $('autoSel').disabled = isDisabled('canChangeAuto');
+}
+async function loadUserProfile(uid){
+  const s = await db.collection('users').doc(uid).get();
+  const d = s.exists ? s.data() : {};
+  const p = d.profile || {};
+  const perm = d.permissions || {};
+  currentTZ = p.tz || 'America/Sao_Paulo'; $('tzSel').value=currentTZ; reapplyTimezone(L.chart); reapplyTimezone(R.chart); updateLastTs();
+  currentPerm = { canIA:!!perm.canIA, canChangeTZ:!!perm.canChangeTZ, canChangePairs:!!perm.canChangePairs, canChangeAuto:!!perm.canChangeAuto };
+  applyPermissions();
+}
+async function saveUserProfile(uid, partial){ await db.collection('users').doc(uid).set({ profile: partial }, { merge: true }); }
+
+$('tzSel').onchange = async ()=>{
+  if($('tzSel').disabled){ $('tzSel').value=currentTZ; return; }
+  currentTZ = $('tzSel').value; reapplyTimezone(L.chart); reapplyTimezone(R.chart); updateLastTs();
+  const u = auth?.currentUser; if(u){ await saveUserProfile(u.uid,{ tz: currentTZ }); }
 };
 
 /* Admin modal */
@@ -617,85 +552,52 @@ $('btnAddInvite').onclick=async()=>{
     if(!email) return toast('Email vazio');
     await db.collection('invites').doc(email).set({role,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
     $('invEmail').value=''; toast('Convite adicionado');
-
-    // tenta aplicar direto se o usuário já existe
-    try{
-      const q = await db.collection('users').where('email','==',email).limit(1).get();
-      if(!q.empty){
-        const uid = q.docs[0].id;
-        await db.collection('users').doc(uid).set({ role }, { merge:true });
-        toast('Convite aplicado ao usuário existente');
-      }
-    }catch(_){/* silencioso */}
+    // aplica direto se o usuário já existe
+    try{ const q=await db.collection('users').where('email','==',email).limit(1).get(); if(!q.empty){ const uid=q.docs[0].id; await db.collection('users').doc(uid).set({ role },{merge:true}); toast('Convite aplicado ao usuário existente'); }}catch(_){}
   }catch(e){ toast('Erro ao adicionar: '+e.message) }
 };
 function renderInvitesSnapshot(snap){
   tblBody.innerHTML='';
-  snap.forEach(doc=>{
-    const {role}=doc.data(); const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${doc.id}</td><td>${role}</td><td><button data-id="${doc.id}" class="rm">Remover</button></td>`;
-    tblBody.appendChild(tr);
-  });
-  tblBody.querySelectorAll('button.rm').forEach(btn=>{
-    btn.onclick=async()=>{ try{ await db.collection('invites').doc(btn.dataset.id).delete(); toast('Convite removido') }catch(e){ toast('Erro: '+e.message)} }
-  });
+  snap.forEach(doc=>{ const {role}=doc.data(); const tr=document.createElement('tr'); tr.innerHTML=`<td>${doc.id}</td><td>${role}</td><td><button data-id=\"${doc.id}\" class=\"rm\">Remover</button></td>`; tblBody.appendChild(tr); });
+  tblBody.querySelectorAll('button.rm').forEach(btn=>{ btn.onclick=async()=>{ try{ await db.collection('invites').doc(btn.dataset.id).delete(); toast('Convite removido') }catch(e){ toast('Erro: '+e.message)} } });
 }
 
-/* Bootstrap de usuário: aplica convite se existir */
+/* Bootstrap de usuário: perfil + permissões default bloqueadas */
 async function bootstrapUser(user){
-  const uid=user.uid, email=user.email.toLowerCase();
-  const userRef=db.collection('users').doc(uid);
-  const doc=await userRef.get();
-  if(!doc.exists){
-    // tenta convite
-    const inv=await db.collection('invites').doc(email).get();
-    const role=inv.exists ? (inv.data().role||'user') : 'user';
-    await userRef.set({email,role,createdAt:firebase.firestore.FieldValue.serverTimestamp(), permissions: {canIA:false,canChangeTZ:false,canChangePairs:false,canChangeAuto:false}});
-    if(inv.exists){ await inv.ref.delete() }
-  }
+  const uid=user.uid, email=(user.email||'').toLowerCase();
+  const ref=db.collection('users').doc(uid); const doc=await ref.get();
+  if(!doc.exists){ await ref.set({ email, role:'user', createdAt:firebase.firestore.FieldValue.serverTimestamp(), profile:{ tz:'America/Sao_Paulo' }, permissions:{ canIA:false, canChangeTZ:false, canChangePairs:false, canChangeAuto:false } }); }
 }
 
-// ===== Aba Usuários (admin) =====
+/* Aba Usuários */
 const usersPane = $('usersPane'), invitesPane = $('invitesPane');
 $('tabInvites').onclick = ()=>{ invitesPane.style.display=''; usersPane.style.display='none'; };
 $('tabUsers').onclick   = ()=>{ invitesPane.style.display='none'; usersPane.style.display=''; };
 const usersTBody = $('tblUsers').querySelector('tbody');
 function renderUsersSnapshot(snap){
-  usersTBody.innerHTML = '';
+  usersTBody.innerHTML='';
   snap.forEach(doc=>{
-    const d = doc.data() || {};
-    const email = d.email || '(sem email)';
-    const role  = d.role  || 'user';
-    const perm  = d.permissions || {};
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
+    const d = doc.data()||{}; const email=d.email||'(sem email)'; const role=d.role||'user'; const perm=d.permissions||{};
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
       <td>${email}</td>
-      <td>
-        <select data-uid="${doc.id}" class="roleSel">
-          <option value="user" ${role==='user'?'selected':''}>user</option>
-          <option value="admin" ${role==='admin'?'selected':''}>admin</option>
-        </select>
-      </td>
-      <td style="text-align:center"><input type="checkbox" class="p-ia" data-uid="${doc.id}" ${perm.canIA? 'checked':''}></td>
-      <td style="text-align:center"><input type="checkbox" class="p-tz" data-uid="${doc.id}" ${perm.canChangeTZ? 'checked':''}></td>
-      <td style="text-align:center"><input type="checkbox" class="p-pairs" data-uid="${doc.id}" ${perm.canChangePairs? 'checked':''}></td>
-      <td style="text-align:center"><input type="checkbox" class="p-auto" data-uid="${doc.id}" ${perm.canChangeAuto? 'checked':''}></td>
-      <td>
-        <button class="btnApply" data-uid="${doc.id}">Aplicar</button>
-      </td>`;
+      <td><select data-uid=\"${doc.id}\" class=\"roleSel\"><option value=\"user\" ${role==='user'?'selected':''}>user</option><option value=\"admin\" ${role==='admin'?'selected':''}>admin</option></select></td>
+      <td style=\"text-align:center\"><input type=\"checkbox\" class=\"p-ia\" data-uid=\"${doc.id}\" ${perm.canIA?'checked':''}></td>
+      <td style=\"text-align:center\"><input type=\"checkbox\" class=\"p-tz\" data-uid=\"${doc.id}\" ${perm.canChangeTZ?'checked':''}></td>
+      <td style=\"text-align:center\"><input type=\"checkbox\" class=\"p-pairs\" data-uid=\"${doc.id}\" ${perm.canChangePairs?'checked':''}></td>
+      <td style=\"text-align:center\"><input type=\"checkbox\" class=\"p-auto\" data-uid=\"${doc.id}\" ${perm.canChangeAuto?'checked':''}></td>
+      <td><button class=\"btnApply\" data-uid=\"${doc.id}\">Aplicar</button></td>`;
     usersTBody.appendChild(tr);
   });
   usersTBody.querySelectorAll('.btnApply').forEach(btn=>{
-    btn.onclick = async ()=>{
+    btn.onclick=async()=>{
       try{
-        const uid = btn.dataset.uid;
-        const sel = usersTBody.querySelector(`select.roleSel[data-uid="${uid}"]`);
-        const role = sel.value;
-        const canIA = usersTBody.querySelector(`input.p-ia[data-uid="${uid}"]`).checked;
-        const canChangeTZ = usersTBody.querySelector(`input.p-tz[data-uid="${uid}"]`).checked;
-        const canChangePairs = usersTBody.querySelector(`input.p-pairs[data-uid="${uid}"]`).checked;
-        const canChangeAuto = usersTBody.querySelector(`input.p-auto[data-uid="${uid}"]`).checked;
-        await db.collection('users').doc(uid).set({ role, permissions:{ canIA, canChangeTZ, canChangePairs, canChangeAuto } }, { merge:true });
+        const uid=btn.dataset.uid; const role=usersTBody.querySelector(`select.roleSel[data-uid=\"${uid}\"]`).value;
+        const canIA=usersTBody.querySelector(`input.p-ia[data-uid=\"${uid}\"]`).checked;
+        const canChangeTZ=usersTBody.querySelector(`input.p-tz[data-uid=\"${uid}\"]`).checked;
+        const canChangePairs=usersTBody.querySelector(`input.p-pairs[data-uid=\"${uid}\"]`).checked;
+        const canChangeAuto=usersTBody.querySelector(`input.p-auto[data-uid=\"${uid}\"]`).checked;
+        await db.collection('users').doc(uid).set({ role, permissions:{ canIA, canChangeTZ, canChangePairs, canChangeAuto } },{merge:true});
         toast('Permissões atualizadas');
       }catch(e){ toast('Erro: '+e.message); }
     };
@@ -704,14 +606,11 @@ function renderUsersSnapshot(snap){
 
 async function startAuth(){
   await waitForFirebase(); auth=window._fb.auth; db=window._fb.db;
-
   auth.onAuthStateChanged(async (user)=>{
     setSessionUI(user);
     if(user){
       await bootstrapUser(user);
       await loadUserProfile(user.uid);
-
-      // observa seu doc p/ saber se é admin (respeita semente)
       userDocUnsub && userDocUnsub(); invitesUnsub && invitesUnsub(); usersUnsub && usersUnsub();
       userDocUnsub = db.collection('users').doc(user.uid).onSnapshot(s=>{
         const storedRole = s.exists ? (s.data().role||'user') : 'user';
@@ -719,9 +618,6 @@ async function startAuth(){
         isAdmin = seeded || storedRole==='admin';
         $('btnAdmin').style.display = isAdmin ? '' : 'none';
         applyPermissions();
-
-        // admin: observar convites e usuários
-        invitesUnsub && invitesUnsub(); usersUnsub && usersUnsub();
         if(isAdmin){
           invitesUnsub = db.collection('invites').orderBy('createdAt','desc').onSnapshot(renderInvitesSnapshot);
           usersUnsub   = db.collection('users').orderBy('createdAt','desc').onSnapshot(renderUsersSnapshot);
@@ -737,6 +633,36 @@ async function startAuth(){
     }
   });
 }
+
+/* ===== Controles ===== */
+['coinL','quoteL','tfL','lenL'].forEach(id=>$(id).addEventListener('change',()=>{ if($(id).disabled) return; loadSide('L') }));
+['coinR','quoteR','tfR','lenR'].forEach(id=>$(id).addEventListener('change',()=>{ if($(id).disabled) return; loadSide('R') }));
+$('btnIaTest').onclick=async()=>{ if($('btnIaTest').classList.contains('disabled')) return; try{ const ok=await testIa(); toast('IA OK: '+ok) }catch(e){ toast('Falha IA: '+e.message) } };
+$('tzSel').addEventListener('change',()=>{ /* já salvo no handler acima via onChange */ });
+
+async function loadSide(side){
+  const coin=(side==='L'?$('coinL').value:$('coinR').value),
+        quote=(side==='L'?$('quoteL').value:$('quoteR').value),
+        tfLbl=(side==='L'?$('tfL').value:$('tfR').value),
+        len=(side==='L'?+$('lenL').value:+$('lenR').value),
+        symbol=symbolOf(coin,quote), intv=tfMap[tfLbl];
+  const data=await fetchKlines(symbol,intv,len);
+  if(side==='L') setDataPreserveView(L.candle,L.chart,data); else setDataPreserveView(R.candle,R.chart,data);
+  updatePairHeader(side,symbol,tfLbl); const local=decideLocalAndBadges(side,data);
+
+  if((isAdmin || currentPerm.canIA) && data.length && $('iaAuto').checked && !$('iaAuto').disabled){
+    try{
+      const res = await callIaWebhook({symbol,tf:tfLbl,ohlc:data.slice(-120),local,tz:currentTZ});
+      (side==='L'?$('iaBadgeL'):$('iaBadgeR')).textContent='IA: '+(res?.advice||local.rec);
+    }catch(e){ (side==='L'?$('iaBadgeL'):$('iaBadgeR')).textContent='IA: erro'; console.warn('[IA]',e); }
+  }else{
+    (side==='L'?$('iaBadgeL'):$('iaBadgeR')).textContent='IA: '+local.rec;
+  }
+}
+
+async function refreshAll(){ await fetchTopQuotes(); await Promise.all([loadSide('L'),loadSide('R')]) }
+let timer=null; function setAuto(ms){ if(timer) clearInterval(timer); if(ms>0) timer=setInterval(refreshAll,ms) }
+$('autoSel').onchange=()=>{ if($('autoSel').disabled) return; setAuto(+$('autoSel').value) };
 
 /* ===== Start ===== */
 (async ()=>{
