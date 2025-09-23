@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Painel Cripto PRO — 2 Gráficos + ST/MKR + IA + Contas</title>
+<title>Painel Cripto PRO — 2 Gráficos + ST/MKR + IA + Contas (RBAC)</title>
 
 <!-- ================== Estilos ================== -->
 <style>
@@ -38,15 +38,16 @@
 
   /* Modais */
   .mask{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:20}
-  .modal{width:720px;max-width:92vw;background:var(--panel);border:1px solid #1f2a40;border-radius:14px;padding:16px}
+  .modal{width:860px;max-width:92vw;background:var(--panel);border:1px solid #1f2a40;border-radius:14px;padding:16px}
   .modal h3{margin:0 0 10px 0}
   .vstack{display:flex;flex-direction:column;gap:8px}
   .hint{font-size:12px;color:#9aa8bf}
   .toast{position:fixed;left:16px;bottom:16px;background:#3a2a06;color:#fde68a;border:1px solid #854d0e;padding:8px 12px;border-radius:10px;display:none;z-index:25}
   table{width:100%;border-collapse:collapse;font-size:14px}
-  th,td{border:1px solid #1f2a40;padding:6px 8px}
+  th,td{border:1px solid #1f2a40;padding:6px 8px;text-align:left}
   th{background:#0b1425}
-  #tblUsers td select { background:#0b1220; color:var(--text); border:1px solid #2c3a52; border-radius:8px; padding:3px 6px }
+  #tblUsers td select, #tblUsers td input[type="checkbox"]{ background:#0b1220; color:var(--text); border:1px solid #2c3a52; border-radius:8px; padding:3px 6px }
+  .disabled{opacity:.6; pointer-events:none}
 </style>
 
 <!-- ================== Charts ================== -->
@@ -90,7 +91,7 @@
 
 <body>
 <div class="wrap">
-  <h1>Painel Cripto PRO — 2 Gráficos + Tendência (ST/MKR) + IA + Contas</h1>
+  <h1>Painel Cripto PRO — 2 Gráficos + Tendência (ST/MKR) + IA + Contas (Permissões)</h1>
 
   <!-- Topo -->
   <div class="topbar">
@@ -297,7 +298,17 @@
     <!-- Pane Usuários -->
     <div id="usersPane" style="display:none">
       <table id="tblUsers">
-        <thead><tr><th>Email</th><th>Papel</th><th>Ações</th></tr></thead>
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Papel</th>
+            <th>IA</th>
+            <th>TZ</th>
+            <th>Pares/TF</th>
+            <th>Auto</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
         <tbody></tbody>
       </table>
     </div>
@@ -317,8 +328,29 @@ const $ = id => document.getElementById(id);
 const fmtNum = (n,d=2)=>Number.isFinite(n)?n.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}):'—';
 function toast(msg,ms=2500){const t=$('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',ms);} 
 
-/* ===== Fuso / Perfil ===== */
+/* ===== JSONP util (fallback IA) ===== */
+function jsonp(url, params={}, cbField='callback'){
+  return new Promise((resolve, reject)=>{
+    const cbName = 'iaCB_' + Math.random().toString(36).slice(2);
+    const s = document.createElement('script');
+    const usp = new URLSearchParams(params);
+    usp.set(cbField, cbName);
+    const sep = url.includes('?') ? '&' : '?';
+    s.src = url + sep + usp.toString();
+
+    let finished = false;
+    window[cbName] = (data)=>{ finished=true; cleanup(); resolve(data); };
+    s.onerror = ()=>{ cleanup(); reject(new Error('Erro ao carregar JSONP')); };
+    document.head.appendChild(s);
+
+    function cleanup(){ try{ document.head.removeChild(s); }catch(_){} try{ delete window[cbName]; }catch(_){} }
+    setTimeout(()=>{ if(!finished){ cleanup(); reject(new Error('Timeout JSONP')); } }, 10000);
+  });
+}
+
+/* ===== Fuso / Perfil / Permissões ===== */
 let currentTZ = 'America/Sao_Paulo';
+let currentPerm = { canIA:false, canChangeTZ:false, canChangePairs:false, canChangeAuto:false };
 function fmtWithTZ(dateOrMs, tz=currentTZ){
   const d = (dateOrMs instanceof Date)? dateOrMs : new Date(dateOrMs);
   return new Intl.DateTimeFormat('pt-BR', { timeZone: tz, dateStyle: 'short', timeStyle: 'medium' }).format(d);
@@ -327,16 +359,42 @@ function updateLastTs(){ $('lastTs').textContent = 'Atualizado: ' + fmtWithTZ(Da
 
 async function loadUserProfile(uid){
   const s = await db.collection('users').doc(uid).get();
-  const p = s.exists ? (s.data().profile || {}) : {};
+  const d = s.exists ? s.data() : {};
+  const p = d.profile || {};
+  const perm = d.permissions || {};
   currentTZ = p.tz || 'America/Sao_Paulo';
+  currentPerm = {
+    canIA: !!perm.canIA,
+    canChangeTZ: !!perm.canChangeTZ,
+    canChangePairs: !!perm.canChangePairs,
+    canChangeAuto: !!perm.canChangeAuto,
+  };
   if($('tzSel')) $('tzSel').value = currentTZ;
+  applyPermissions();
 }
 async function saveUserProfile(uid, partial){
   const ref = db.collection('users').doc(uid);
   await ref.set({ profile: partial }, { merge: true });
 }
+function applyPermissions(){
+  const isDisabled = (flag)=> (!isAdmin && !currentPerm[flag]);
+  // IA controls
+  $('iaUrl').disabled = isDisabled('canIA');
+  $('iaKey').disabled = isDisabled('canIA');
+  $('iaAuto').disabled= isDisabled('canIA');
+  $('btnIaTest').classList.toggle('disabled', isDisabled('canIA'));
+  // Timezone
+  $('tzSel').disabled = isDisabled('canChangeTZ');
+  // Pairs / TF / Len
+  ['coinL','quoteL','tfL','lenL','coinR','quoteR','tfR','lenR'].forEach(id=>{
+    const el=$(id); if(!el) return; el.disabled = isDisabled('canChangePairs');
+  });
+  // Auto refresh
+  $('autoSel').disabled = isDisabled('canChangeAuto');
+}
 $('tzSel').onchange = async ()=>{
-  currentTZ = $('tzSel').value; updateLastTs();
+  const v = $('tzSel').value; if($('tzSel').disabled){ $('tzSel').value = currentTZ; return; }
+  currentTZ = v; updateLastTs();
   const u = auth?.currentUser; if(u){ await saveUserProfile(u.uid, { tz: currentTZ }); }
 };
 
@@ -454,26 +512,51 @@ async function loadSide(side){
   const data=await fetchKlines(symbol,intv,len);
   if(side==='L') setDataPreserveView(L.candle,L.chart,data); else setDataPreserveView(R.candle,R.chart,data);
   updatePairHeader(side,symbol,tfLbl); const local=decideLocalAndBadges(side,data);
-  const iaOn=$('iaAuto').checked;
-  if(iaOn && data.length){
+
+  // IA: só se permitido
+  if((isAdmin || currentPerm.canIA) && data.length && $('iaAuto').checked && !$('iaAuto').disabled){
     try{
-      const url=$('iaUrl').value.trim(); if(url){
-        const headers={'Content-Type':'application/json'}; const key=$('iaKey').value.trim(); if(key) headers['Authorization']=key;
-        const resp=await fetch(url,{method:'POST',headers,body:JSON.stringify({symbol,tf:tfLbl,ohlc:data.slice(-120),local,tz:currentTZ})}).then(r=>r.json());
-        (side==='L'?$('iaBadgeL'):$('iaBadgeR')).textContent='IA: '+(resp?.advice||local.rec);
-      }else{ (side==='L'?$('iaBadgeL'):$('iaBadgeR')).textContent='IA: '+local.rec }
+      const payload={symbol,tf:tfLbl,ohlc:data.slice(-120),local,tz:currentTZ};
+      const res = await callIaWebhook(payload);
+      (side==='L'?$('iaBadgeL'):$('iaBadgeR')).textContent='IA: '+(res?.advice||local.rec);
     }catch{ (side==='L'?$('iaBadgeL'):$('iaBadgeR')).textContent='IA: '+local.rec }
-  }else{ (side==='L'?$('iaBadgeL'):$('iaBadgeR')).textContent='IA: '+local.rec }
+  }else{
+    (side==='L'?$('iaBadgeL'):$('iaBadgeR')).textContent='IA: '+local.rec
+  }
 }
 async function refreshAll(){ await fetchTopQuotes(); await Promise.all([loadSide('L'),loadSide('R')]) }
 let timer=null; function setAuto(ms){ if(timer) clearInterval(timer); if(ms>0) timer=setInterval(refreshAll,ms) }
-$('autoSel').onchange=()=>setAuto(+$('autoSel').value);
-['coinL','quoteL','tfL','lenL'].forEach(id=>$(id).addEventListener('change',()=>loadSide('L')));
-['coinR','quoteR','tfR','lenR'].forEach(id=>$(id).addEventListener('change',()=>loadSide('R')));
-$('btnIaTest').onclick=async()=>{ try{ const url=$('iaUrl').value.trim(); if(!url) return toast('Informe a URL do IA');
-  const h={'Content-Type':'application/json'}; const k=$('iaKey').value.trim(); if(k) h['Authorization']=k;
-  const r=await fetch(url,{method:'POST',headers:h,body:JSON.stringify({ping:true,now:Date.now(),tz:currentTZ})}).then(r=>r.json());
-  toast('IA OK: '+(r?.message||r?.advice||'sucesso')); }catch(e){ toast('Falha IA: '+e.message) } };
+$('autoSel').onchange=()=>{ if($('autoSel').disabled) return; setAuto(+$('autoSel').value) };
+['coinL','quoteL','tfL','lenL'].forEach(id=>$(id).addEventListener('change',()=>{ if($(id).disabled) return; loadSide('L') }));
+['coinR','quoteR','tfR','lenR'].forEach(id=>$(id).addEventListener('change',()=>{ if($(id).disabled) return; loadSide('R') }));
+$('btnIaTest').onclick=async()=>{ if($('btnIaTest').classList.contains('disabled')) return; try{ const ok=await testIa(); toast('IA OK: '+ok) }catch(e){ toast('Falha IA: '+e.message) } };
+
+/* ===== IA (POST com fallback JSONP) ===== */
+function getIaConfig(){ return { url: $('iaUrl').value.trim(), key: $('iaKey').value.trim() } }
+async function callIaWebhook(payload){
+  const { url, key } = getIaConfig(); if(!url) throw new Error('IA URL vazia');
+  // 1) tenta POST JSON
+  try{
+    const headers={'Content-Type':'application/json'}; if(key) headers['Authorization']=key;
+    const r=await fetch(url,{method:'POST',headers,body:JSON.stringify(payload)});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const j=await r.json(); if(j && (j.ok===true || j.advice)) return j; throw new Error('Resposta inválida');
+  }catch(_){ /* fallback JSONP */ }
+  // 2) fallback JSONP via ?q=base64
+  const compact={symbol:payload.symbol,tf:payload.tf,tz:payload.tz,local:payload.local,last:(payload.ohlc||[]).slice(-120)};
+  const q=btoa(JSON.stringify(compact));
+  const params={ q }; if(key) params.key=key;
+  const j = await jsonp(url, params);
+  if(j && (j.ok===true || j.advice)) return j;
+  throw new Error('Falha na IA');
+}
+async function testIa(){
+  const { url, key } = getIaConfig(); if(!url) throw new Error('Configure a URL da IA');
+  try{ const j=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json', ...(key?{Authorization:key}:{})},body:JSON.stringify({ping:true,now:Date.now()})});
+       if(j.ok){ const x=await j.json(); return x.message||x.advice||'sucesso (POST)'; }
+       throw new Error('HTTP '+j.status);
+  }catch{ const j=await jsonp(url,{sample:1, key}); return (j&& (j.message||j.advice||'sucesso (JSONP)')) }
+}
 
 /* ===== Auth + Perfis (Firestore) ===== */
 let auth, db, userDocUnsub=null, invitesUnsub=null, usersUnsub=null, isAdmin=false;
@@ -543,7 +626,7 @@ async function bootstrapUser(user){
     // tenta convite
     const inv=await db.collection('invites').doc(email).get();
     const role=inv.exists ? (inv.data().role||'user') : 'user';
-    await userRef.set({email,role,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+    await userRef.set({email,role,createdAt:firebase.firestore.FieldValue.serverTimestamp(), permissions: {canIA:false,canChangeTZ:false,canChangePairs:false,canChangeAuto:false}});
     if(inv.exists){ await inv.ref.delete() }
   }
 }
@@ -559,6 +642,7 @@ function renderUsersSnapshot(snap){
     const d = doc.data() || {};
     const email = d.email || '(sem email)';
     const role  = d.role  || 'user';
+    const perm  = d.permissions || {};
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${email}</td>
@@ -568,6 +652,10 @@ function renderUsersSnapshot(snap){
           <option value="admin" ${role==='admin'?'selected':''}>admin</option>
         </select>
       </td>
+      <td style="text-align:center"><input type="checkbox" class="p-ia" data-uid="${doc.id}" ${perm.canIA? 'checked':''}></td>
+      <td style="text-align:center"><input type="checkbox" class="p-tz" data-uid="${doc.id}" ${perm.canChangeTZ? 'checked':''}></td>
+      <td style="text-align:center"><input type="checkbox" class="p-pairs" data-uid="${doc.id}" ${perm.canChangePairs? 'checked':''}></td>
+      <td style="text-align:center"><input type="checkbox" class="p-auto" data-uid="${doc.id}" ${perm.canChangeAuto? 'checked':''}></td>
       <td>
         <button class="btnApply" data-uid="${doc.id}">Aplicar</button>
       </td>`;
@@ -579,8 +667,12 @@ function renderUsersSnapshot(snap){
         const uid = btn.dataset.uid;
         const sel = usersTBody.querySelector(`select.roleSel[data-uid="${uid}"]`);
         const role = sel.value;
-        await db.collection('users').doc(uid).set({ role }, { merge:true });
-        toast('Papel atualizado');
+        const canIA = usersTBody.querySelector(`input.p-ia[data-uid="${uid}"]`).checked;
+        const canChangeTZ = usersTBody.querySelector(`input.p-tz[data-uid="${uid}"]`).checked;
+        const canChangePairs = usersTBody.querySelector(`input.p-pairs[data-uid="${uid}"]`).checked;
+        const canChangeAuto = usersTBody.querySelector(`input.p-auto[data-uid="${uid}"]`).checked;
+        await db.collection('users').doc(uid).set({ role, permissions:{ canIA, canChangeTZ, canChangePairs, canChangeAuto } }, { merge:true });
+        toast('Permissões atualizadas');
       }catch(e){ toast('Erro: '+e.message); }
     };
   });
@@ -602,6 +694,7 @@ async function startAuth(){
         const seeded = ADMIN_EMAILS.includes((user.email||'').toLowerCase());
         isAdmin = seeded || storedRole==='admin';
         $('btnAdmin').style.display = isAdmin ? '' : 'none';
+        applyPermissions();
 
         // admin: observar convites e usuários
         invitesUnsub && invitesUnsub(); usersUnsub && usersUnsub();
