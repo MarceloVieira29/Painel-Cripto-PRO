@@ -303,17 +303,18 @@
     <!-- Pane Convites -->
     <div id="invitesPane">
       <div class="vstack" style="margin-bottom:8px">
-        <div class="row" style="flex-wrap:wrap">
-          <input id="invEmail" placeholder="email do usuário">
-          <select id="invRole">
-            <option value="user" selected>user</option>
-            <option value="admin">admin</option>
-          </select>
-          <button id="btnAddInvite">Adicionar convite</button>
-        </div>
-        <p class="hint">Usuários convidados: ao fazer login, recebem o papel do convite (se ainda não tiverem um perfil).</p>
+      <div class="row" style="flex-wrap:wrap">
+        <input id="invEmail" placeholder="email do usuário">
+        <select id="invRole">
+          <option value="user" selected>user</option>
+          <option value="admin">admin</option>
+        </select>
+        <button id="btnAddInvite">Adicionar convite</button>
+        <button id="btnInviteLink">Enviar link mágico</button>
       </div>
-      <table id="tblInvites">
+      <p class="hint">Usuários convidados: ao fazer login, recebem o papel do convite. "Enviar link mágico" manda um e-mail de login sem senha (Firebase Email Link) — habilite esse método no Console.</p>
+    </div>
+    <table id="tblInvites">
         <thead><tr><th>Email</th><th>Papel</th><th>Ações</th></tr></thead>
         <tbody></tbody>
       </table>
@@ -479,6 +480,18 @@ function decideLocalAndBadges(side,data){
   return {tend:tendencia,rec}
 }
 
+/* ===== IA badge colorida ===== */
+function applyIaAdvice(side, advice){
+  const el = side==='L'? $('iaBadgeL') : $('iaBadgeR');
+  const txt = 'IA: '+(advice||'—');
+  const s = (advice||'').toString().toLowerCase();
+  let cls = 'b-yellow';
+  if(/compr|alta|long|bull/.test(s)) cls='b-green';
+  else if(/vend|baixa|short|bear/.test(s)) cls='b-red';
+  el.className = 'badge '+cls;
+  el.textContent = txt;
+}
+
 /* ===== IA (JSON puro via POST) ===== */
 function getIaConfig(){ return { url: $('iaUrl').value.trim(), key: $('iaKey').value.trim() } }
 async function callIaWebhook(payload){
@@ -564,6 +577,17 @@ $('btnDoLogin').onclick = async ()=>{
 const adminMask=$('adminMask'), tblBody=$('tblInvites').querySelector('tbody');
 $('btnAdmin').onclick=()=>{ adminMask.style.display='flex' }
 $('btnCloseAdmin').onclick=()=>{ adminMask.style.display='none' }
+
+// ===== Email Link (passwordless) settings =====
+const ACTION_CODE_SETTINGS = {
+  url: window.location.origin + window.location.pathname,
+  handleCodeInApp: true,
+};
+async function sendMagicLink(email){
+  if(!email) throw new Error('Email vazio');
+  await auth.sendSignInLinkToEmail(email, ACTION_CODE_SETTINGS);
+}
+
 $('btnAddInvite').onclick=async()=>{
   try{
     const email=$('invEmail').value.trim().toLowerCase(), role=$('invRole').value;
@@ -574,7 +598,17 @@ $('btnAddInvite').onclick=async()=>{
     try{ const q=await db.collection('users').where('email','==',email).limit(1).get(); if(!q.empty){ const uid=q.docs[0].id; await db.collection('users').doc(uid).set({ role },{merge:true}); toast('Convite aplicado ao usuário existente'); }}catch(_){}
   }catch(e){ toast('Erro ao adicionar: '+e.message) }
 };
-function renderInvitesSnapshot(snap){
+
+$('btnInviteLink').onclick=async()=>{
+  try{
+    const email=$('invEmail').value.trim().toLowerCase();
+    if(!email) return toast('Email vazio');
+    await sendMagicLink(email);
+    toast('Link mágico enviado para '+email);
+  }catch(e){ toast('Falha ao enviar link: '+(e.message||e)); }
+};
+
+function renderInvitesSnapshot(snap)(snap){
   tblBody.innerHTML='';
   snap.forEach(doc=>{ const {role}=doc.data(); const tr=document.createElement('tr'); tr.innerHTML=`<td>${doc.id}</td><td>${role}</td><td><button data-id=\"${doc.id}\" class=\"rm\">Remover</button></td>`; tblBody.appendChild(tr); });
   tblBody.querySelectorAll('button.rm').forEach(btn=>{ btn.onclick=async()=>{ try{ await db.collection('invites').doc(btn.dataset.id).delete(); toast('Convite removido') }catch(e){ toast('Erro: '+e.message)} } });
@@ -693,10 +727,10 @@ async function loadSide(side){
   if((isAdmin || currentPerm.canIA) && data.length && $('iaAuto').checked && !$('iaAuto').disabled){
     try{
       const res = await callIaWebhook({symbol,tf:tfLbl,ohlc:data.slice(-120),local,tz:currentTZ});
-      (side==='L'?$('iaBadgeL'):$('iaBadgeR')).textContent='IA: '+(res?.advice||local.rec);
-    }catch(e){ (side==='L'?$('iaBadgeL'):$('iaBadgeR')).textContent='IA: erro'; console.warn('[IA]',e); }
+      applyIaAdvice(side, (res && res.advice) ? res.advice : local.rec);
+    }catch(e){ applyIaAdvice(side, local.rec); console.warn('[IA]',e); }
   }else{
-    (side==='L'?$('iaBadgeL'):$('iaBadgeR')).textContent='IA: '+local.rec;
+    applyIaAdvice(side, local.rec);
   }
 }
 
@@ -707,29 +741,26 @@ $('autoSel').onchange=()=>{ if($('autoSel').disabled) return; setAuto(+$('autoSe
 /* ===== Start ===== */
 (async ()=>{
   await waitForFirebase();
+
+  // Completa login por Email Link se a URL contiver o código
+  try{
+    if(auth.isSignInWithEmailLink(window.location.href)){
+      let email = window.localStorage.getItem('emailForSignIn') || '';
+      if(!email){ email = prompt('Digite seu e-mail para concluir o login:') || ''; }
+      if(email){
+        await auth.signInWithEmailLink(email, window.location.href);
+        window.localStorage.removeItem('emailForSignIn');
+        history.replaceState(null, '', window.location.pathname);
+      }
+    }
+  }catch(_){ /* ignore */ }
+
   // presets
   $('coinL').value='BTC';$('quoteL').value='BRL';$('tfL').value='3M';$('lenL').value='360';
   $('coinR').value='BTC';$('quoteR').value='USDT';$('tfR').value='3M';$('lenR').value='360';
   await refreshAll(); setAuto(+$('autoSel').value);
   startAuth();
 })();
-</script>
-
-<!--
-==== Regras Firestore sugeridas (cole no Console, aba Rules) ====
-
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{db}/documents {
-    function isAdmin() {
-      return request.auth != null
-        && exists(/databases/$(db)/documents/users/$(request.auth.uid))
-        && get(/databases/$(db)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    // users: o próprio lê; admin pode ler/escrever qualquer
-    match /users/{uid} {
-      allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
       allow write: if isAdmin();
     }
 
