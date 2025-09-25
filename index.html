@@ -542,6 +542,24 @@ $('tzSel').onchange = async ()=>{
   const u = auth?.currentUser; if(u){ await saveUserProfile(u.uid,{ tz: currentTZ }); }
 };
 
+/* Login handlers */
+$('btnOpenLogin').onclick = ()=>{ $('loginMask').style.display='flex'; $('inEmail').focus(); };
+$('btnCancelLogin').onclick = ()=>{ $('loginMask').style.display='none'; };
+$('btnLogout').onclick = async ()=>{ try{ await auth.signOut(); toast('Sessão encerrada'); }catch(e){ toast('Erro ao sair'); } };
+$('btnDoLogin').onclick = async ()=>{
+  const email = $('inEmail').value.trim(), pass = $('inPass').value;
+  if(!email || !pass){ toast('Informe e-mail e senha'); return; }
+  try{
+    await auth.signInWithEmailAndPassword(email,pass).catch(async err=>{
+      if(err.code==='auth/user-not-found'){
+        await auth.createUserWithEmailAndPassword(email,pass);
+        toast('Conta criada');
+      } else { throw err; }
+    });
+    $('loginMask').style.display='none';
+  }catch(e){ toast('Falha login: '+(e.message||e)); }
+};
+
 /* Admin modal */
 const adminMask=$('adminMask'), tblBody=$('tblInvites').querySelector('tbody');
 $('btnAdmin').onclick=()=>{ adminMask.style.display='flex' }
@@ -564,9 +582,27 @@ function renderInvitesSnapshot(snap){
 
 /* Bootstrap de usuário: perfil + permissões default bloqueadas */
 async function bootstrapUser(user){
-  const uid=user.uid, email=(user.email||'').toLowerCase();
-  const ref=db.collection('users').doc(uid); const doc=await ref.get();
-  if(!doc.exists){ await ref.set({ email, role:'user', createdAt:firebase.firestore.FieldValue.serverTimestamp(), profile:{ tz:'America/Sao_Paulo' }, permissions:{ canIA:false, canChangeTZ:false, canChangePairs:false, canChangeAuto:false } }); }
+  const uid = user.uid, email = (user.email||'').toLowerCase();
+  const ref = db.collection('users').doc(uid);
+  const doc = await ref.get();
+  if(!doc.exists){
+    // Papel padrão
+    let role = 'user';
+    // 1) Se for e-mail semente, já vira admin
+    if (ADMIN_EMAILS.includes(email)) role = 'admin';
+    // 2) Se houver convite para este e-mail, aplica o papel do convite e consome-o
+    try{
+      const inv = await db.collection('invites').doc(email).get();
+      if(inv.exists){ role = inv.data().role || role; await inv.ref.delete(); }
+    }catch(_){ /* ignore */ }
+    await ref.set({
+      email,
+      role,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      profile: { tz: 'America/Sao_Paulo' },
+      permissions: { canIA:false, canChangeTZ:false, canChangePairs:false, canChangeAuto:false }
+    });
+  }
 }
 
 /* Aba Usuários */
@@ -615,6 +651,10 @@ async function startAuth(){
       userDocUnsub = db.collection('users').doc(user.uid).onSnapshot(s=>{
         const storedRole = s.exists ? (s.data().role||'user') : 'user';
         const seeded = ADMIN_EMAILS.includes((user.email||'').toLowerCase());
+        // Garante admin no perfil se for e-mail semente
+        if(seeded && storedRole!=='admin'){
+          db.collection('users').doc(user.uid).set({ role:'admin' }, { merge:true }).catch(()=>{});
+        }
         isAdmin = seeded || storedRole==='admin';
         $('btnAdmin').style.display = isAdmin ? '' : 'none';
         applyPermissions();
