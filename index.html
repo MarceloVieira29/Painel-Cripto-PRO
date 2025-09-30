@@ -3,9 +3,8 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Painel Cripto PRO — 2 Gráficos + ST/MKR + IA + Contas (RBAC)</title>
+<title>Painel Cripto PRO — 2 Gráficos + ST/MKR + IA + Contas (Permissões)</title>
 
-<!-- ================== Estilos ================== -->
 <style>
   :root{
     --bg:#0b1220;--panel:#0e1627;--soft:#111b2f;--muted:#334155;--text:#e5e7eb;
@@ -36,7 +35,6 @@
   .split{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
   footer{margin-top:12px;color:#9aa8bf;font-size:12px;text-align:center}
 
-  /* Modais */
   .mask{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:20}
   .modal{width:860px;max-width:92vw;background:var(--panel);border:1px solid #1f2a40;border-radius:14px;padding:16px}
   .modal h3{margin:0 0 10px 0}
@@ -50,17 +48,13 @@
   .disabled{opacity:.6; pointer-events:none}
 </style>
 
-<!-- ================== Charts ================== -->
 <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
-
-<!-- ================== Firebase compat (ordem importa) ================== -->
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-functions-compat.js"></script>
 
-<!-- ================== Firebase init ================== -->
 <script>
-  // Config do seu projeto Firebase
   const firebaseConfig = {
     apiKey: "AIzaSyAN70DLpn18XA11_JwjtkodpaOjquKEs3U",
     authDomain: "painel-cripto-pro.firebaseapp.com",
@@ -75,12 +69,11 @@
   const _db   = firebase.firestore();
   window._fb  = { app:_app, auth:_auth, db:_db };
 
-  // Helper para garantir que o Firebase está pronto antes de usar
   function waitForFirebase(){
     return new Promise((resolve,reject)=>{
       let tries=0;
       (function check(){
-        if(window._fb && window._fb.auth && window._fb.db) return resolve(window._fb);
+        if(window._fb?.auth && window._fb?.db) return resolve(window._fb);
         if(++tries>200) return reject(new Error('Firebase não inicializou'));
         setTimeout(check,25);
       })();
@@ -93,7 +86,6 @@
 <div class="wrap">
   <h1>Painel Cripto PRO — 2 Gráficos + Tendência (ST/MKR) + IA + Contas (Permissões)</h1>
 
-  <!-- Topo -->
   <div class="topbar">
     <div class="split">
       <div class="row">
@@ -106,44 +98,16 @@
       <div class="row">
         <label class="chip">Auto:
           <select id="autoSel">
-            <option value="0">Off</option>
-            <option value="2000">2s</option>
-            <option value="5000" selected>5s</option>
-            <option value="10000">10s</option>
-            <option value="15000">15s</option>
+            <option value="0">Off</option><option value="2000">2s</option>
+            <option value="5000" selected>5s</option><option value="10000">10s</option><option value="15000">15s</option>
           </select>
         </label>
         <label class="chip">Fuso
           <select id="tzSel">
             <option value="America/Sao_Paulo" selected>America/Sao_Paulo (BR)</option>
             <option value="UTC">UTC</option>
-            <option value="America/Bogota">America/Bogota</option>
-            <option value="America/Lima">America/Lima</option>
-            <option value="America/Argentina/Buenos_Aires">America/Argentina/Buenos_Aires</option>
-            <option value="America/Santiago">America/Santiago</option>
-            <option value="America/Mexico_City">America/Mexico_City</option>
-            <option value="America/Toronto">America/Toronto</option>
             <option value="America/New_York">America/New_York</option>
-            <option value="America/Los_Angeles">America/Los_Angeles</option>
             <option value="Europe/Lisbon">Europe/Lisbon</option>
-            <option value="Europe/London">Europe/London</option>
-            <option value="Europe/Madrid">Europe/Madrid</option>
-            <option value="Europe/Paris">Europe/Paris</option>
-            <option value="Europe/Rome">Europe/Rome</option>
-            <option value="Europe/Zurich">Europe/Zurich</option>
-            <option value="Europe/Amsterdam">Europe/Amsterdam</option>
-            <option value="Europe/Berlin">Europe/Berlin</option>
-            <option value="Europe/Moscow">Europe/Moscow</option>
-            <option value="Africa/Johannesburg">Africa/Johannesburg</option>
-            <option value="Asia/Dubai">Asia/Dubai</option>
-            <option value="Asia/Kolkata">Asia/Kolkata</option>
-            <option value="Asia/Singapore">Asia/Singapore</option>
-            <option value="Asia/Hong_Kong">Asia/Hong_Kong</option>
-            <option value="Asia/Shanghai">Asia/Shanghai</option>
-            <option value="Asia/Seoul">Asia/Seoul</option>
-            <option value="Asia/Tokyo">Asia/Tokyo</option>
-            <option value="Australia/Sydney">Australia/Sydney</option>
-            <option value="Pacific/Auckland">Pacific/Auckland</option>
           </select>
         </label>
         <label class="chip">IA Webhook
@@ -163,40 +127,19 @@
     </div>
   </div>
 
-  <!-- Grids -->
   <div class="grid">
-    <!-- L -->
     <div class="card">
       <div class="headRow">
         <div class="row"><span id="pairTitleL" class="title">—</span></div>
         <div class="row">
           <label class="chip">Moeda
-            <select id="coinL">
-              <option selected>BTC</option>
-              <option>ETH</option>
-              <option>SOL</option>
-              <option>BNB</option>
-              <option>XRP</option>
-              <option>ADA</option>
-              <option>DOGE</option>
-              <option>TON</option>
-              <option>DOT</option>
-              <option>USDC</option>
-              <option>MATIC</option>
-              <option>AVAX</option>
-              <option>LTC</option>
-              <option>TRX</option>
-              <option>SHIB</option>
-            </select>
+            <select id="coinL"><option selected>BTC</option><option>ETH</option><option>BNB</option><option>SOL</option><option>ADA</option><option>XRP</option><option>DOGE</option><option>USDC</option></select>
           </label>
           <label class="chip">Contra
             <select id="quoteL"><option>BRL</option><option selected>USDT</option></select>
           </label>
           <label class="chip">TF
-            <select id="tfL">
-              <option>1M</option><option selected>3M</option><option>5M</option><option>15M</option>
-              <option>30M</option><option>1H</option><option>1D</option><option>1MO</option>
-            </select>
+            <select id="tfL"><option>1M</option><option selected>3M</option><option>5M</option><option>15M</option><option>30M</option><option>1H</option><option>1D</option><option>1MO</option></select>
           </label>
           <label class="chip">Velas
             <select id="lenL"><option>120</option><option selected>360</option><option>720</option><option>1200</option></select>
@@ -217,38 +160,18 @@
       </div>
     </div>
 
-    <!-- R -->
     <div class="card">
       <div class="headRow">
         <div class="row"><span id="pairTitleR" class="title">—</span></div>
         <div class="row">
           <label class="chip">Moeda
-            <select id="coinR">
-              <option selected>BTC</option>
-              <option>ETH</option>
-              <option>SOL</option>
-              <option>BNB</option>
-              <option>XRP</option>
-              <option>ADA</option>
-              <option>DOGE</option>
-              <option>TON</option>
-              <option>DOT</option>
-              <option>USDC</option>
-              <option>MATIC</option>
-              <option>AVAX</option>
-              <option>LTC</option>
-              <option>TRX</option>
-              <option>SHIB</option>
-            </select>
+            <select id="coinR"><option selected>BTC</option><option>ETH</option><option>BNB</option><option>SOL</option><option>ADA</option><option>XRP</option><option>DOGE</option><option>USDC</option></select>
           </label>
           <label class="chip">Contra
             <select id="quoteR"><option>BRL</option><option selected>USDT</option></select>
           </label>
           <label class="chip">TF
-            <select id="tfR">
-              <option>1M</option><option selected>3M</option><option>5M</option><option>15M</option>
-              <option>30M</option><option>1H</option><option>1D</option><option>1MO</option>
-            </select>
+            <select id="tfR"><option>1M</option><option selected>3M</option><option>5M</option><option>15M</option><option>30M</option><option>1H</option><option>1D</option><option>1MO</option></select>
           </label>
           <label class="chip">Velas
             <select id="lenR"><option>120</option><option selected>360</option><option>720</option><option>1200</option></select>
@@ -273,7 +196,7 @@
   <footer>Painel Cripto Pro © 2025 — Desenvolvido por Marcelo. Para toda Honra e Glória do Senhor Jesus!</footer>
 </div>
 
-<!-- ===== Modal Login ===== -->
+<!-- Login -->
 <div class="mask" id="loginMask">
   <div class="modal">
     <h3>Entrar</h3>
@@ -289,50 +212,34 @@
   </div>
 </div>
 
-<!-- ===== Modal Admin (convites & usuários) ===== -->
+<!-- Admin -->
 <div class="mask" id="adminMask">
   <div class="modal">
     <h3>Admin — Convites & Usuários</h3>
-
-    <!-- Tabs -->
     <div class="row" style="margin:8px 0">
       <button id="tabInvites" class="chip" style="cursor:pointer">Convites</button>
       <button id="tabUsers" class="chip" style="cursor:pointer">Usuários</button>
     </div>
 
-    <!-- Pane Convites -->
     <div id="invitesPane">
       <div class="vstack" style="margin-bottom:8px">
-      <div class="row" style="flex-wrap:wrap">
-        <input id="invEmail" placeholder="email do usuário">
-        <select id="invRole">
-          <option value="user" selected>user</option>
-          <option value="admin">admin</option>
-        </select>
-        <button id="btnAddInvite">Adicionar convite</button>
-        <button id="btnInviteLink">Enviar link mágico</button>
+        <div class="row" style="flex-wrap:wrap">
+          <input id="invEmail" placeholder="email do usuário">
+          <select id="invRole"><option value="user" selected>user</option><option value="admin">admin</option></select>
+          <button id="btnAddInvite">Adicionar convite</button>
+        </div>
+        <p class="hint">Ao logar, o usuário recebe o papel do convite.</p>
       </div>
-      <p class="hint">Usuários convidados: ao fazer login, recebem o papel do convite. "Enviar link mágico" manda um e-mail de login sem senha (Firebase Email Link) — habilite esse método no Console.</p>
-    </div>
-    <table id="tblInvites">
+      <table id="tblInvites">
         <thead><tr><th>Email</th><th>Papel</th><th>Ações</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
 
-    <!-- Pane Usuários -->
     <div id="usersPane" style="display:none">
       <table id="tblUsers">
         <thead>
-          <tr>
-            <th>Email</th>
-            <th>Papel</th>
-            <th>IA</th>
-            <th>TZ</th>
-            <th>Pares/TF</th>
-            <th>Auto</th>
-            <th>Ações</th>
-          </tr>
+          <tr><th>Email</th><th>Papel</th><th>IA</th><th>TZ</th><th>Pares/TF</th><th>Auto</th><th>Ações</th></tr>
         </thead>
         <tbody></tbody>
       </table>
@@ -346,26 +253,25 @@
 
 <div class="toast" id="toast"></div>
 
-<!-- ================== App Script ================== -->
 <script>
 /* ===== Helpers ===== */
 const $ = id => document.getElementById(id);
 const fmtNum = (n,d=2)=>Number.isFinite(n)?n.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}):'—';
-function toast(msg,ms=2500){const t=$('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',ms);} 
+function toast(msg,ms=2500){const t=$('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',ms);}
 
-/* ===== Timezone helpers (aplicado também no eixo do gráfico) ===== */
+/* ===== Timezone ===== */
 let currentTZ = 'America/Sao_Paulo';
 function makeTimeFormatters(tz){
   const fmtTime = new Intl.DateTimeFormat('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:tz});
   const fmtDay  = new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'2-digit',timeZone:tz});
   const fmtFull = new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:tz});
   const timeFormatter = (time)=>{ const ts=(time&&time.timestamp)||time; return fmtFull.format(new Date(ts*1000)); };
-  const tickMarkFormatter = (time, tickType)=>{ const ts=(time&&time.timestamp)||time; return tickType<=1? fmtDay.format(new Date(ts*1000)) : fmtTime.format(new Date(ts*1000)); };
+  const tickMarkFormatter = (time, t)=>{ const ts=(time&&time.timestamp)||time; return t<=1? fmtDay.format(new Date(ts*1000)) : fmtTime.format(new Date(ts*1000)); };
   return { timeFormatter, tickMarkFormatter };
 }
 function updateLastTs(){ $('lastTs').textContent='Atualizado: '+ new Intl.DateTimeFormat('pt-BR',{dateStyle:'short',timeStyle:'medium',timeZone:currentTZ}).format(new Date()); }
 
-/* ===== Binance + Indicadores ===== */
+/* ===== Dados/Indicadores ===== */
 const tfMap={ '1M':'1m','3M':'3m','5M':'5m','15M':'15m','30M':'30m','1H':'1h','1D':'1d','1MO':'1M' };
 const symbolOf=(c,q)=>(c+q).toUpperCase();
 
@@ -407,11 +313,11 @@ function calcSuperTrend(ohlc,len=10,mul=3){
   }
   return {dir:dir[n-1],atr:atr[n-1],line:st}
 }
-function K(kernel,x,bw){const u=x/bw;return Math.exp(-0.5*u*u)/Math.sqrt(2*Math.PI)}
+function K(_,x,bw){const u=x/bw;return Math.exp(-0.5*u*u)/Math.sqrt(2*Math.PI)}
 function mkrSmooth(arr,bw=14,dev=2){
   const n=arr.length;const mean=new Array(n),up=new Array(n),dn=new Array(n);
   for(let i=0;i<n;i++){let wsum=0,vsum=0,vsq=0;const left=Math.max(0,i-bw+1);
-    for(let j=left;j<=i;j++){const w=K('Gaussian',i-j,bw/3);wsum+=w;vsum+=arr[j]*w;vsq+=arr[j]*arr[j]*w}
+    for(let j=left;j<=i;j++){const w=K('g',i-j,bw/3);wsum+=w;vsum+=arr[j]*w;vsq+=arr[j]*arr[j]*w}
     const mu=vsum/wsum;const sd=Math.sqrt(Math.max(0,(vsq/wsum)-mu*mu));mean[i]=mu;up[i]=mu+dev*sd;dn[i]=mu-dev*sd}
   const slope=(n>1&&Number.isFinite(mean[n-1])&&Number.isFinite(mean[n-2]))?(mean[n-1]-mean[n-2]):0;
   return {mean,up,dn,slope,delta:slope}
@@ -436,7 +342,6 @@ function reapplyTimezone(chart){
   chart.applyOptions({ localization:{locale:'pt-BR', timeFormatter}, timeScale:{ tickMarkFormatter } });
 }
 const L=mkChart('chartL'), R=mkChart('chartR');
-reapplyTimezone(L.chart); reapplyTimezone(R.chart);
 
 function setDataPreserveView(series,chart,data){
   const ts=chart.timeScale(), atRight=Math.abs(ts.scrollPosition())<1e-2, vr=ts.getVisibleLogicalRange();
@@ -480,25 +385,19 @@ function decideLocalAndBadges(side,data){
   return {tend:tendencia,rec}
 }
 
-/* ===== IA badge colorida ===== */
+/* ===== IA ===== */
 function applyIaAdvice(side, advice){
   const el = side==='L'? $('iaBadgeL') : $('iaBadgeR');
-  const txt = 'IA: '+(advice||'—');
   const s = (advice||'').toString().toLowerCase();
-  let cls = 'b-yellow';
-  if(/compr|alta|long|bull/.test(s)) cls='b-green';
-  else if(/vend|baixa|short|bear/.test(s)) cls='b-red';
-  el.className = 'badge '+cls;
-  el.textContent = txt;
+  let cls = 'b-yellow'; if(/compr|alta|long|bull/.test(s)) cls='b-green'; else if(/vend|baixa|short|bear/.test(s)) cls='b-red';
+  el.className = 'badge '+cls; el.textContent = 'IA: '+(advice||'—');
 }
-
-/* ===== IA (JSON puro via POST) ===== */
 function getIaConfig(){ return { url: $('iaUrl').value.trim(), key: $('iaKey').value.trim() } }
 async function callIaWebhook(payload){
   const { url, key } = getIaConfig(); if(!url) throw new Error('IA URL vazia');
   const headers={'Content-Type':'application/json'}; if(key) headers['Authorization']=key;
   const r = await fetch(url,{method:'POST',headers,body:JSON.stringify(payload)});
-  let j = null; try{ j = await r.json(); }catch(_){}
+  let j=null; try{ j=await r.json(); }catch(_){}
   if(!r.ok) throw new Error(j?.error || ('HTTP '+r.status));
   if(!(j && (j.ok===true || j.advice))) throw new Error('Resposta inválida');
   return j;
@@ -507,17 +406,14 @@ async function testIa(){
   const { url, key } = getIaConfig(); if(!url) throw new Error('Configure a URL da IA');
   const headers={'Content-Type':'application/json'}; if(key) headers['Authorization']=key;
   const r = await fetch(url,{method:'POST',headers,body:JSON.stringify({ping:true,now:Date.now()})});
-  let j=null; try{ j=await r.json(); }catch(_){ }
+  let j=null; try{ j=await r.json(); }catch(_){}
   if(!r.ok) throw new Error(j?.error||('HTTP '+r.status));
   return j?.message||j?.advice||'sucesso';
 }
 
-/* ===== Auth + Perfis (Firestore) ===== */
+/* ===== Auth + Perfis ===== */
 let auth, db, userDocUnsub=null, invitesUnsub=null, usersUnsub=null, isAdmin=false;
-
-// Semente (emails que SEMPRE são admin)
-const ADMIN_EMAILS = [ 'mjcsvieira@gmail.com' ];
-
+const ADMIN_EMAILS = ['mjcsvieira@gmail.com'];
 let currentPerm = { canIA:false, canChangeTZ:false, canChangePairs:false, canChangeAuto:false };
 
 function setSessionUI(user){
@@ -525,18 +421,12 @@ function setSessionUI(user){
   else{ $('sessStatus').textContent='desconectado'; $('btnOpenLogin').style.display=''; $('btnLogout').style.display='none'; $('btnAdmin').style.display='none'; isAdmin=false; }
 }
 function applyPermissions(){
-  const isDisabled = (flag)=> (!isAdmin && !currentPerm[flag]);
-  // IA controls
-  $('iaUrl').disabled = isDisabled('canIA');
-  $('iaKey').disabled = isDisabled('canIA');
-  $('iaAuto').disabled= isDisabled('canIA');
-  $('btnIaTest').classList.toggle('disabled', isDisabled('canIA'));
-  // Timezone
-  $('tzSel').disabled = isDisabled('canChangeTZ');
-  // Pairs / TF / Len
-  ['coinL','quoteL','tfL','lenL','coinR','quoteR','tfR','lenR'].forEach(id=>{ const el=$(id); if(el) el.disabled = isDisabled('canChangePairs'); });
-  // Auto refresh
-  $('autoSel').disabled = isDisabled('canChangeAuto');
+  const dis = (flag)=> (!isAdmin && !currentPerm[flag]);
+  $('iaUrl').disabled = dis('canIA'); $('iaKey').disabled = dis('canIA'); $('iaAuto').disabled=dis('canIA');
+  $('btnIaTest').classList.toggle('disabled', dis('canIA'));
+  $('tzSel').disabled = dis('canChangeTZ');
+  ['coinL','quoteL','tfL','lenL','coinR','quoteR','tfR','lenR'].forEach(id=>{ const el=$(id); if(el) el.disabled = dis('canChangePairs'); });
+  $('autoSel').disabled = dis('canChangeAuto');
 }
 async function loadUserProfile(uid){
   const s = await db.collection('users').doc(uid).get();
@@ -555,7 +445,7 @@ $('tzSel').onchange = async ()=>{
   const u = auth?.currentUser; if(u){ await saveUserProfile(u.uid,{ tz: currentTZ }); }
 };
 
-/* Login handlers */
+/* Login */
 $('btnOpenLogin').onclick = ()=>{ $('loginMask').style.display='flex'; $('inEmail').focus(); };
 $('btnCancelLogin').onclick = ()=>{ $('loginMask').style.display='none'; };
 $('btnLogout').onclick = async ()=>{ try{ await auth.signOut(); toast('Sessão encerrada'); }catch(e){ toast('Erro ao sair'); } };
@@ -564,29 +454,19 @@ $('btnDoLogin').onclick = async ()=>{
   if(!email || !pass){ toast('Informe e-mail e senha'); return; }
   try{
     await auth.signInWithEmailAndPassword(email,pass).catch(async err=>{
-      if(err.code==='auth/user-not-found'){
-        await auth.createUserWithEmailAndPassword(email,pass);
-        toast('Conta criada');
-      } else { throw err; }
+      if(err.code==='auth/user-not-found'){ await auth.createUserWithEmailAndPassword(email,pass); toast('Conta criada') } else { throw err; }
     });
     $('loginMask').style.display='none';
   }catch(e){ toast('Falha login: '+(e.message||e)); }
 };
 
-/* Admin modal */
+/* Admin modal & convites */
 const adminMask=$('adminMask'), tblBody=$('tblInvites').querySelector('tbody');
-$('btnAdmin').onclick=()=>{ adminMask.style.display='flex' }
-$('btnCloseAdmin').onclick=()=>{ adminMask.style.display='none' }
+$('btnAdmin').onclick=()=>{ adminMask.style.display='flex' };
+$('btnCloseAdmin').onclick=()=>{ adminMask.style.display='none' };
 
-// ===== Email Link (passwordless) settings =====
-const ACTION_CODE_SETTINGS = {
-  url: window.location.origin + window.location.pathname,
-  handleCodeInApp: true,
-};
-async function sendMagicLink(email){
-  if(!email) throw new Error('Email vazio');
-  await auth.sendSignInLinkToEmail(email, ACTION_CODE_SETTINGS);
-}
+$('tabInvites').onclick = ()=>{ $('invitesPane').style.display=''; $('usersPane').style.display='none'; };
+$('tabUsers').onclick   = ()=>{ $('invitesPane').style.display='none'; $('usersPane').style.display=''; };
 
 $('btnAddInvite').onclick=async()=>{
   try{
@@ -594,55 +474,24 @@ $('btnAddInvite').onclick=async()=>{
     if(!email) return toast('Email vazio');
     await db.collection('invites').doc(email).set({role,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
     $('invEmail').value=''; toast('Convite adicionado');
-    // aplica direto se o usuário já existe
+    // aplica direto se usuário já existe
     try{ const q=await db.collection('users').where('email','==',email).limit(1).get(); if(!q.empty){ const uid=q.docs[0].id; await db.collection('users').doc(uid).set({ role },{merge:true}); toast('Convite aplicado ao usuário existente'); }}catch(_){}
   }catch(e){ toast('Erro ao adicionar: '+e.message) }
 };
 
-$('btnInviteLink').onclick=async()=>{
-  try{
-    const email=$('invEmail').value.trim().toLowerCase();
-    if(!email) return toast('Email vazio');
-    await sendMagicLink(email);
-    toast('Link mágico enviado para '+email);
-  }catch(e){ toast('Falha ao enviar link: '+(e.message||e)); }
-};
-
-function renderInvitesSnapshot(snap)(snap){
+function renderInvitesSnapshot(snap){
   tblBody.innerHTML='';
-  snap.forEach(doc=>{ const {role}=doc.data(); const tr=document.createElement('tr'); tr.innerHTML=`<td>${doc.id}</td><td>${role}</td><td><button data-id=\"${doc.id}\" class=\"rm\">Remover</button></td>`; tblBody.appendChild(tr); });
-  tblBody.querySelectorAll('button.rm').forEach(btn=>{ btn.onclick=async()=>{ try{ await db.collection('invites').doc(btn.dataset.id).delete(); toast('Convite removido') }catch(e){ toast('Erro: '+e.message)} } });
+  snap.forEach(doc=>{
+    const {role}=doc.data(); const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${doc.id}</td><td>${role}</td><td><button data-id="${doc.id}" class="rm">Remover</button></td>`;
+    tblBody.appendChild(tr);
+  });
+  tblBody.querySelectorAll('button.rm').forEach(btn=>{
+    btn.onclick=async()=>{ try{ await db.collection('invites').doc(btn.dataset.id).delete(); toast('Convite removido') }catch(e){ toast('Erro: '+e.message)} };
+  });
 }
 
-/* Bootstrap de usuário: perfil + permissões default bloqueadas */
-async function bootstrapUser(user){
-  const uid = user.uid, email = (user.email||'').toLowerCase();
-  const ref = db.collection('users').doc(uid);
-  const doc = await ref.get();
-  if(!doc.exists){
-    // Papel padrão
-    let role = 'user';
-    // 1) Se for e-mail semente, já vira admin
-    if (ADMIN_EMAILS.includes(email)) role = 'admin';
-    // 2) Se houver convite para este e-mail, aplica o papel do convite e consome-o
-    try{
-      const inv = await db.collection('invites').doc(email).get();
-      if(inv.exists){ role = inv.data().role || role; await inv.ref.delete(); }
-    }catch(_){ /* ignore */ }
-    await ref.set({
-      email,
-      role,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      profile: { tz: 'America/Sao_Paulo' },
-      permissions: { canIA:false, canChangeTZ:false, canChangePairs:false, canChangeAuto:false }
-    });
-  }
-}
-
-/* Aba Usuários */
-const usersPane = $('usersPane'), invitesPane = $('invitesPane');
-$('tabInvites').onclick = ()=>{ invitesPane.style.display=''; usersPane.style.display='none'; };
-$('tabUsers').onclick   = ()=>{ invitesPane.style.display='none'; usersPane.style.display=''; };
+/* Usuários (RBAC) */
 const usersTBody = $('tblUsers').querySelector('tbody');
 function renderUsersSnapshot(snap){
   usersTBody.innerHTML='';
@@ -651,22 +500,22 @@ function renderUsersSnapshot(snap){
     const tr=document.createElement('tr');
     tr.innerHTML=`
       <td>${email}</td>
-      <td><select data-uid=\"${doc.id}\" class=\"roleSel\"><option value=\"user\" ${role==='user'?'selected':''}>user</option><option value=\"admin\" ${role==='admin'?'selected':''}>admin</option></select></td>
-      <td style=\"text-align:center\"><input type=\"checkbox\" class=\"p-ia\" data-uid=\"${doc.id}\" ${perm.canIA?'checked':''}></td>
-      <td style=\"text-align:center\"><input type=\"checkbox\" class=\"p-tz\" data-uid=\"${doc.id}\" ${perm.canChangeTZ?'checked':''}></td>
-      <td style=\"text-align:center\"><input type=\"checkbox\" class=\"p-pairs\" data-uid=\"${doc.id}\" ${perm.canChangePairs?'checked':''}></td>
-      <td style=\"text-align:center\"><input type=\"checkbox\" class=\"p-auto\" data-uid=\"${doc.id}\" ${perm.canChangeAuto?'checked':''}></td>
-      <td><button class=\"btnApply\" data-uid=\"${doc.id}\">Aplicar</button></td>`;
+      <td><select data-uid="${doc.id}" class="roleSel"><option value="user" ${role==='user'?'selected':''}>user</option><option value="admin" ${role==='admin'?'selected':''}>admin</option></select></td>
+      <td style="text-align:center"><input type="checkbox" class="p-ia" data-uid="${doc.id}" ${perm.canIA?'checked':''}></td>
+      <td style="text-align:center"><input type="checkbox" class="p-tz" data-uid="${doc.id}" ${perm.canChangeTZ?'checked':''}></td>
+      <td style="text-align:center"><input type="checkbox" class="p-pairs" data-uid="${doc.id}" ${perm.canChangePairs?'checked':''}></td>
+      <td style="text-align:center"><input type="checkbox" class="p-auto" data-uid="${doc.id}" ${perm.canChangeAuto?'checked':''}></td>
+      <td><button class="btnApply" data-uid="${doc.id}">Aplicar</button></td>`;
     usersTBody.appendChild(tr);
   });
   usersTBody.querySelectorAll('.btnApply').forEach(btn=>{
     btn.onclick=async()=>{
       try{
-        const uid=btn.dataset.uid; const role=usersTBody.querySelector(`select.roleSel[data-uid=\"${uid}\"]`).value;
-        const canIA=usersTBody.querySelector(`input.p-ia[data-uid=\"${uid}\"]`).checked;
-        const canChangeTZ=usersTBody.querySelector(`input.p-tz[data-uid=\"${uid}\"]`).checked;
-        const canChangePairs=usersTBody.querySelector(`input.p-pairs[data-uid=\"${uid}\"]`).checked;
-        const canChangeAuto=usersTBody.querySelector(`input.p-auto[data-uid=\"${uid}\"]`).checked;
+        const uid=btn.dataset.uid; const role=usersTBody.querySelector(`select.roleSel[data-uid="${uid}"]`).value;
+        const canIA=usersTBody.querySelector(`input.p-ia[data-uid="${uid}"]`).checked;
+        const canChangeTZ=usersTBody.querySelector(`input.p-tz[data-uid="${uid}"]`).checked;
+        const canChangePairs=usersTBody.querySelector(`input.p-pairs[data-uid="${uid}"]`).checked;
+        const canChangeAuto=usersTBody.querySelector(`input.p-auto[data-uid="${uid}"]`).checked;
         await db.collection('users').doc(uid).set({ role, permissions:{ canIA, canChangeTZ, canChangePairs, canChangeAuto } },{merge:true});
         toast('Permissões atualizadas');
       }catch(e){ toast('Erro: '+e.message); }
@@ -674,6 +523,22 @@ function renderUsersSnapshot(snap){
   });
 }
 
+/* Bootstrap + Auth watcher */
+async function bootstrapUser(user){
+  const uid = user.uid, email = (user.email||'').toLowerCase();
+  const ref = db.collection('users').doc(uid);
+  const doc = await ref.get();
+  if(!doc.exists){
+    let role = ADMIN_EMAILS.includes(email) ? 'admin' : 'user';
+    try{ const inv=await db.collection('invites').doc(email).get(); if(inv.exists){ role = inv.data().role||role; await inv.ref.delete(); } }catch(_){}
+    await ref.set({
+      email, role,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      profile: { tz: 'America/Sao_Paulo' },
+      permissions: { canIA:false, canChangeTZ:false, canChangePairs:false, canChangeAuto:false }
+    });
+  }
+}
 async function startAuth(){
   await waitForFirebase(); auth=window._fb.auth; db=window._fb.db;
   auth.onAuthStateChanged(async (user)=>{
@@ -685,10 +550,7 @@ async function startAuth(){
       userDocUnsub = db.collection('users').doc(user.uid).onSnapshot(s=>{
         const storedRole = s.exists ? (s.data().role||'user') : 'user';
         const seeded = ADMIN_EMAILS.includes((user.email||'').toLowerCase());
-        // Garante admin no perfil se for e-mail semente
-        if(seeded && storedRole!=='admin'){
-          db.collection('users').doc(user.uid).set({ role:'admin' }, { merge:true }).catch(()=>{});
-        }
+        if(seeded && storedRole!=='admin'){ db.collection('users').doc(user.uid).set({ role:'admin' }, { merge:true }).catch(()=>{}); }
         isAdmin = seeded || storedRole==='admin';
         $('btnAdmin').style.display = isAdmin ? '' : 'none';
         applyPermissions();
@@ -696,6 +558,7 @@ async function startAuth(){
           invitesUnsub = db.collection('invites').orderBy('createdAt','desc').onSnapshot(renderInvitesSnapshot);
           usersUnsub   = db.collection('users').orderBy('createdAt','desc').onSnapshot(renderUsersSnapshot);
         }else{
+          invitesUnsub && invitesUnsub(); usersUnsub && usersUnsub();
           tblBody.innerHTML=''; usersTBody.innerHTML='';
         }
       });
@@ -712,8 +575,8 @@ async function startAuth(){
 ['coinL','quoteL','tfL','lenL'].forEach(id=>$(id).addEventListener('change',()=>{ if($(id).disabled) return; loadSide('L') }));
 ['coinR','quoteR','tfR','lenR'].forEach(id=>$(id).addEventListener('change',()=>{ if($(id).disabled) return; loadSide('R') }));
 $('btnIaTest').onclick=async()=>{ if($('btnIaTest').classList.contains('disabled')) return; try{ const ok=await testIa(); toast('IA OK: '+ok) }catch(e){ toast('Falha IA: '+e.message) } };
-$('tzSel').addEventListener('change',()=>{ /* já salvo no handler acima via onChange */ });
 
+/* ===== Lado L/R ===== */
 async function loadSide(side){
   const coin=(side==='L'?$('coinL').value:$('coinR').value),
         quote=(side==='L'?$('quoteL').value:$('quoteR').value),
@@ -734,43 +597,49 @@ async function loadSide(side){
   }
 }
 
+/* ===== Refresh & Start ===== */
 async function refreshAll(){ await fetchTopQuotes(); await Promise.all([loadSide('L'),loadSide('R')]) }
 let timer=null; function setAuto(ms){ if(timer) clearInterval(timer); if(ms>0) timer=setInterval(refreshAll,ms) }
 $('autoSel').onchange=()=>{ if($('autoSel').disabled) return; setAuto(+$('autoSel').value) };
 
-/* ===== Start ===== */
 (async ()=>{
-  await waitForFirebase();
+  await waitForFirebase(); auth=window._fb.auth; db=window._fb.db;
+  const { timeFormatter, tickMarkFormatter } = makeTimeFormatters(currentTZ);
+  reapplyTimezone(L.chart); reapplyTimezone(R.chart);
 
-  // Completa login por Email Link se a URL contiver o código
-  try{
-    if(auth.isSignInWithEmailLink(window.location.href)){
-      let email = window.localStorage.getItem('emailForSignIn') || '';
-      if(!email){ email = prompt('Digite seu e-mail para concluir o login:') || ''; }
-      if(email){
-        await auth.signInWithEmailLink(email, window.location.href);
-        window.localStorage.removeItem('emailForSignIn');
-        history.replaceState(null, '', window.location.pathname);
-      }
-    }
-  }catch(_){ /* ignore */ }
-
-  // presets
   $('coinL').value='BTC';$('quoteL').value='BRL';$('tfL').value='3M';$('lenL').value='360';
   $('coinR').value='BTC';$('quoteR').value='USDT';$('tfR').value='3M';$('lenR').value='360';
   await refreshAll(); setAuto(+$('autoSel').value);
   startAuth();
 })();
+</script>
+
+<!--
+==== Regras Firestore (cole em Rules, NÃO nesta página) ====
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    function isAdmin() {
+      return request.auth != null
+        && exists(/databases/$(db)/documents/users/$(request.auth.uid))
+        && get(/databases/$(db)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    match /users/{uid} {
+      allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
       allow write: if isAdmin();
     }
-
-    // invites: admin gerencia; leitura opcional para logados
     match /invites/{email} {
       allow read: if request.auth != null;
       allow write, delete: if isAdmin();
+    }
+    match /adminLogs/{id} {
+      allow read, write: if isAdmin();
     }
   }
 }
 -->
 </body>
 </html>
+
+
+
